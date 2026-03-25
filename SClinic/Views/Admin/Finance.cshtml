@@ -3,6 +3,22 @@
     Layout = "~/Views/Shared/_StaffLayout.cshtml";
 }
 
+@section Styles {
+<style>
+@@media print {
+    body * { visibility: hidden !important; }
+    #print-area, #print-area * { visibility: visible !important; }
+    #print-area {
+        position: fixed; inset: 0;
+        width: 100%; padding: 40px;
+        font-family: 'Inter', sans-serif;
+        background: white;
+        color: #0f172a;
+    }
+}
+</style>
+}
+
 <div id="app">
     <!-- Stats -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -24,7 +40,7 @@
             <div class="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center text-lg">💰</div>
             <div>
                 <p class="text-xs text-slate-500 font-semibold">Doanh thu hôm nay</p>
-                <p class="text-xl font-extrabold text-slate-900">1.749.000đ</p>
+                <p class="text-xl font-extrabold text-brand-primary">[[ todayRevenue ]]đ</p>
             </div>
         </div>
     </div>
@@ -52,7 +68,7 @@
                 <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
                     <th class="px-6 py-4 font-semibold">Mã HĐ</th>
                     <th class="px-6 py-4 font-semibold">Bệnh nhân</th>
-                    <th class="px-6 py-4 font-semibold">Dịch vụ</th>
+                    <th class="px-6 py-4 font-semibold">Dịch vụ chính</th>
                     <th class="px-6 py-4 font-semibold">Tổng tiền</th>
                     <th class="px-6 py-4 font-semibold">Trạng thái</th>
                     <th class="px-6 py-4 font-semibold text-right">Thao tác</th>
@@ -62,25 +78,32 @@
                 <tr v-for="inv in filteredInvoices" :key="inv.id"
                     :class="inv.status==='pending' ? 'bg-amber-50/20' : ''"
                     class="hover:bg-slate-50 transition-colors">
-                    <td class="px-6 py-4 font-mono text-sm font-bold text-slate-500">#INV-[[ String(inv.id).padStart(4,'0') ]]</td>
+                    <td class="px-6 py-4 font-mono text-sm font-bold text-slate-500">#HD-[[ String(inv.id).padStart(4,'0') ]]</td>
                     <td class="px-6 py-4">
                         <p class="text-sm font-bold text-slate-900">[[ inv.patient ]]</p>
                         <p class="text-xs text-slate-400">[[ inv.time ]]</p>
                     </td>
-                    <td class="px-6 py-4 text-sm text-slate-600">[[ inv.service ]]</td>
-                    <td class="px-6 py-4 text-sm font-extrabold text-slate-800">[[ inv.amount ]]</td>
+                    <td class="px-6 py-4 text-sm text-slate-600">[[ inv.service || '—' ]]</td>
+                    <td class="px-6 py-4 text-sm font-extrabold text-slate-800">[[ inv.amountFmt ]]đ</td>
                     <td class="px-6 py-4">
                         <span :class="inv.status==='paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
                               class="text-xs font-bold px-3 py-1 rounded-full">
                             [[ inv.status==='paid' ? 'Đã thu' : 'Chờ thu' ]]
                         </span>
                     </td>
-                    <td class="px-6 py-4 text-right">
+                    <td class="px-6 py-4 text-right flex items-center justify-end gap-2">
+                        <button @@click="viewDetail(inv)"
+                                class="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors">
+                            📄 Chi tiết
+                        </button>
                         <button v-if="inv.status==='pending'" @@click="collect(inv)"
                                 class="px-4 py-1.5 bg-brand-primary text-white rounded-lg text-xs font-bold hover:bg-brand-hover transition-colors">
                             Thu tiền ✓
                         </button>
-                        <span v-else class="text-xs text-slate-400">Hoàn tất</span>
+                        <button v-else @@click="printInvoice(inv)"
+                                class="px-3 py-1.5 border border-teal-200 text-teal-700 rounded-lg text-xs font-bold hover:bg-teal-50 transition-colors">
+                            🖨️ In HĐ
+                        </button>
                     </td>
                 </tr>
                 <tr v-if="!filteredInvoices.length">
@@ -90,7 +113,69 @@
         </table>
     </div>
 
-    <!-- Collect modal -->
+    <!-- ── DETAIL MODAL ──────────────────────────────────────────────── -->
+    <div v-if="detailModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Chi tiết Hóa đơn</h2>
+                    <p class="text-xs text-slate-500 mt-0.5 font-mono">#HD-[[ String(detailModal.id).padStart(4,'0') ]]</p>
+                </div>
+                <button @@click="detailModal=null" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-red-100 hover:text-red-600 font-bold flex items-center justify-center">✕</button>
+            </div>
+            <div class="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                <!-- Patient info -->
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><p class="text-slate-400 text-xs mb-1">Bệnh nhân</p><p class="font-bold text-slate-800">[[ detailModal.patient ]]</p></div>
+                        <div><p class="text-slate-400 text-xs mb-1">Ngày tạo</p><p class="font-bold text-slate-800">[[ detailModal.time ]]</p></div>
+                        <div><p class="text-slate-400 text-xs mb-1">Trạng thái</p>
+                            <span :class="detailModal.status==='paid'?'bg-emerald-100 text-emerald-700':'bg-amber-100 text-amber-700'"
+                                  class="text-xs font-bold px-2 py-0.5 rounded-full">
+                                [[ detailModal.status==='paid'?'Đã thanh toán':'Chờ thu' ]]
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Detail lines -->
+                <div>
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Danh sách dịch vụ / thuốc</p>
+                    <div v-if="detailModal.details && detailModal.details.length" class="space-y-2">
+                        <div v-for="(d, i) in detailModal.details" :key="i"
+                             class="flex justify-between items-center py-2.5 px-4 bg-slate-50 rounded-xl border border-slate-100 text-sm">
+                            <div>
+                                <p class="font-semibold text-slate-800">[[ d.name ]]</p>
+                                <p class="text-xs text-slate-400">SL: [[ d.quantity ]] × [[ Number(d.unitPrice).toLocaleString('vi-VN') ]]đ</p>
+                            </div>
+                            <p class="font-extrabold text-brand-primary">[[ Number(d.subtotal).toLocaleString('vi-VN') ]]đ</p>
+                        </div>
+                    </div>
+                    <div v-else class="text-center text-slate-400 text-sm py-4">Chưa có chi tiết.</div>
+                </div>
+                <!-- Total -->
+                <div class="flex justify-between items-center pt-3 border-t border-slate-200">
+                    <p class="font-bold text-slate-700">Tổng cộng</p>
+                    <p class="text-2xl font-extrabold text-brand-primary">[[ detailModal.amountFmt ]]đ</p>
+                </div>
+            </div>
+            <div class="p-5 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end">
+                <button @@click="printInvoice(detailModal)"
+                        class="px-5 py-2.5 border border-teal-300 text-teal-700 rounded-xl text-sm font-bold hover:bg-teal-50 transition-colors">
+                    🖨️ In hóa đơn
+                </button>
+                <button v-if="detailModal.status==='pending'" @@click="collect(detailModal); detailModal=null"
+                        class="px-6 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover shadow-md">
+                    ✓ Thu tiền
+                </button>
+                <button v-else @@click="detailModal=null"
+                        class="px-6 py-2.5 bg-slate-200 text-slate-700 rounded-xl text-sm font-bold">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── COLLECT MODAL ─────────────────────────────────────────────── -->
     <div v-if="modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
         <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
             <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
@@ -100,7 +185,7 @@
             <div class="p-6 space-y-4">
                 <div class="bg-teal-50 p-4 rounded-xl border border-teal-100 text-center">
                     <p class="text-sm text-slate-600">Tổng tiền cần thu</p>
-                    <p class="text-4xl font-extrabold text-brand-primary mt-1">[[ modal.amount ]]</p>
+                    <p class="text-4xl font-extrabold text-brand-primary mt-1">[[ modal.amountFmt ]]đ</p>
                     <p class="text-sm text-slate-500 mt-1">[[ modal.patient ]]</p>
                 </div>
                 <div>
@@ -121,6 +206,46 @@
             </div>
         </div>
     </div>
+
+    <!-- ── HIDDEN PRINT AREA ─────────────────────────────────────────── -->
+    <div id="print-area" style="display:none">
+        <div v-if="printData" style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+            <div style="text-align:center;border-bottom:2px solid #0d9488;padding-bottom:16px;margin-bottom:16px">
+                <h1 style="color:#0d9488;font-size:24px;margin:0">S-CLINIC</h1>
+                <p style="color:#64748b;font-size:12px;margin:4px 0">Phòng khám Da liễu chuyên khoa</p>
+                <p style="color:#64748b;font-size:12px;margin:0">123 Đường Láng, Đống Đa, Hà Nội | 1900 6868</p>
+            </div>
+            <h2 style="text-align:center;font-size:18px;color:#0f172a;margin-bottom:4px">HÓA ĐƠN THANH TOÁN</h2>
+            <p style="text-align:center;color:#64748b;font-size:12px;margin-top:0">#HD-[[ printData && String(printData.id).padStart(4,'0') ]]</p>
+            <table style="width:100%;margin:16px 0;font-size:13px;border-collapse:collapse">
+                <tr><td style="padding:4px 0;color:#64748b">Bệnh nhân:</td><td style="font-weight:700">[[ printData && printData.patient ]]</td></tr>
+                <tr><td style="padding:4px 0;color:#64748b">Ngày:</td><td>[[ printData && printData.time ]]</td></tr>
+                <tr><td style="padding:4px 0;color:#64748b">Trạng thái:</td><td style="font-weight:700;color:#0d9488">Đã thanh toán</td></tr>
+            </table>
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead>
+                    <tr style="background:#f1f5f9">
+                        <th style="padding:8px 4px;text-align:left;border-bottom:1px solid #e2e8f0">Tên dịch vụ / thuốc</th>
+                        <th style="padding:8px 4px;text-align:center;border-bottom:1px solid #e2e8f0">SL</th>
+                        <th style="padding:8px 4px;text-align:right;border-bottom:1px solid #e2e8f0">Đơn giá</th>
+                        <th style="padding:8px 4px;text-align:right;border-bottom:1px solid #e2e8f0">Thành tiền</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="(d, i) in (printData && printData.details || [])" :key="i">
+                        <td style="padding:6px 4px;border-bottom:1px solid #f1f5f9">[[ d.name ]]</td>
+                        <td style="padding:6px 4px;text-align:center;border-bottom:1px solid #f1f5f9">[[ d.quantity ]]</td>
+                        <td style="padding:6px 4px;text-align:right;border-bottom:1px solid #f1f5f9">[[ Number(d.unitPrice).toLocaleString('vi-VN') ]]đ</td>
+                        <td style="padding:6px 4px;text-align:right;border-bottom:1px solid #f1f5f9">[[ Number(d.subtotal).toLocaleString('vi-VN') ]]đ</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div style="text-align:right;margin-top:12px;padding-top:12px;border-top:2px solid #0d9488">
+                <p style="font-size:18px;font-weight:700;color:#0d9488">TỔNG CỘNG: [[ printData && printData.amountFmt ]]đ</p>
+            </div>
+            <p style="text-align:center;color:#94a3b8;font-size:11px;margin-top:24px">Cảm ơn quý khách đã tin tưởng S-Clinic! • Giữ lại hóa đơn để đối chiếu khi cần.</p>
+        </div>
+    </div>
 </div>
 
 @section Scripts {
@@ -129,30 +254,45 @@ const { createApp, ref, computed, onMounted } = Vue;
 createApp({
     delimiters: ['[[', ']]'],
     setup() {
-        const filter    = ref('all');
-        const search    = ref('');
-        const modal     = ref(null);
-        const payMethod = ref('Tiền mặt');
-        const invoices  = ref([]);
+        const filter      = ref('all');
+        const search      = ref('');
+        const modal       = ref(null);
+        const detailModal = ref(null);
+        const printData   = ref(null);
+        const payMethod   = ref('Tiền mặt');
+        const invoices    = ref([]);
 
-        // ── Load real data from DB ──────────────────────────
+        // ── Load real data ──────────────────────────────────────────
         const loadData = async () => {
             const res  = await fetch('/api/invoicesapi');
             const data = await res.json();
             invoices.value = data.map(i => ({
-                id:      i.invoiceId,
-                patient: `Hóa đơn #INV-${String(i.invoiceId).padStart(4,'0')}`,
-                service: '',
-                amount:  Number(i.totalAmount).toLocaleString('vi-VN') + 'đ',
-                time:    i.createdDate,
-                status:  i.status === 'Paid' ? 'paid' : 'pending'
+                id:        i.invoiceId,
+                patient:   i.patientName  || `Bệnh nhân #${i.invoiceId}`,
+                service:   i.serviceName  || '',
+                amountFmt: Number(i.totalAmount).toLocaleString('vi-VN'),
+                amount:    i.totalAmount,
+                time:      i.createdDate  || '',
+                status:    i.paymentStatus === 'Paid' ? 'paid' : 'pending',
+                details:   (i.details || []).map(d => ({
+                    name:      d.name,
+                    quantity:  d.quantity,
+                    unitPrice: d.unitPrice,
+                    subtotal:  d.subtotal
+                }))
             }));
         };
         onMounted(loadData);
 
-        // ── Computed ────────────────────────────────────────
-        const pending          = computed(() => invoices.value.filter(i => i.status === 'pending'));
-        const paidCount        = computed(() => invoices.value.filter(i => i.status === 'paid').length);
+        // ── Computed ────────────────────────────────────────────────
+        const pending = computed(() => invoices.value.filter(i => i.status === 'pending'));
+        const paidCount = computed(() => invoices.value.filter(i => i.status === 'paid').length);
+        const todayRevenue = computed(() => {
+            const total = invoices.value
+                .filter(i => i.status === 'paid')
+                .reduce((s, i) => s + Number(i.amount), 0);
+            return total.toLocaleString('vi-VN');
+        });
         const filteredInvoices = computed(() => {
             let list = invoices.value;
             if (filter.value !== 'all') list = list.filter(i => i.status === filter.value);
@@ -162,8 +302,9 @@ createApp({
             return list;
         });
 
-        // ── Actions ─────────────────────────────────────────
-        const collect = (inv) => { modal.value = inv; payMethod.value = 'Tiền mặt'; };
+        // ── Actions ─────────────────────────────────────────────────
+        const viewDetail  = (inv) => { detailModal.value = inv; };
+        const collect     = (inv) => { modal.value = inv; payMethod.value = 'Tiền mặt'; };
 
         const confirmCollect = async () => {
             if (!modal.value) return;
@@ -177,9 +318,23 @@ createApp({
             modal.value = null;
         };
 
-        return { filter, search, modal, payMethod, invoices, pending, paidCount, filteredInvoices, collect, confirmCollect };
+        const printInvoice = (inv) => {
+            printData.value = inv;
+            // show print area, trigger print, hide again
+            const el = document.getElementById('print-area');
+            el.style.display = 'block';
+            setTimeout(() => {
+                window.print();
+                el.style.display = 'none';
+            }, 150);
+        };
+
+        return { filter, search, modal, detailModal, printData, payMethod, invoices,
+                 pending, paidCount, todayRevenue, filteredInvoices,
+                 viewDetail, collect, confirmCollect, printInvoice };
     }
 }).mount('#app');
 </script>
 }
+
 

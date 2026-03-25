@@ -29,25 +29,28 @@ public class InvoicesApiController(ApplicationDbContext db) : ControllerBase
 
         var list = await q
             .OrderByDescending(i => i.CreatedDate)
-            .Select(i => new
-            {
-                i.InvoiceId,
-                i.TotalAmount,
-                Status      = i.PaymentStatus.ToString(),
-                CreatedDate = i.CreatedDate.ToString("dd/MM/yyyy HH:mm"),
-                PatientName = i.Record != null && i.Record.Appointment != null ? i.Record.Appointment.Patient.FullName : "Chưa cập nhật",
-                Items = i.InvoiceDetails.Select(d => new
-                {
-                    Name = d.ItemType == InvoiceItemType.Medicine && d.Medicine != null ? d.Medicine.MedicineName : 
-                           d.ItemType == InvoiceItemType.Service && d.Service != null ? d.Service.ServiceName : "Dịch vụ/Thuốc",
-                    Quantity = d.Quantity,
-                    UnitPrice = d.UnitPrice,
-                    SubTotal = d.SubTotal
-                })
-            })
             .ToListAsync();
 
-        return Ok(list);
+        var result = list.Select(i => new
+        {
+            i.InvoiceId,
+            i.TotalAmount,
+            PaymentStatus = i.PaymentStatus.ToString(),
+            CreatedDate   = i.CreatedDate.ToString("dd/MM/yyyy HH:mm"),
+            PatientName   = i.Record?.Appointment?.Patient?.FullName ?? "Chưa cập nhật",
+            ServiceName   = i.InvoiceDetails.FirstOrDefault(d => d.ItemType == InvoiceItemType.Service)?.Service?.ServiceName ?? "",
+            Details       = i.InvoiceDetails.Select(d => new
+            {
+                Name      = d.ItemType == InvoiceItemType.Medicine && d.Medicine != null ? d.Medicine.MedicineName
+                           : d.ItemType == InvoiceItemType.Service && d.Service  != null ? d.Service.ServiceName
+                           : "Dịch vụ/Thuốc",
+                d.Quantity,
+                d.UnitPrice,
+                Subtotal  = d.SubTotal
+            }).ToList()
+        });
+
+        return Ok(result);
     }
 
     // PATCH api/invoicesapi/{id}/collect — mark as paid

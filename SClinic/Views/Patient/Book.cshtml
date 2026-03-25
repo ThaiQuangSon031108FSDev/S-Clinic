@@ -118,28 +118,44 @@
                     </div>
                     <h2 class="text-xl font-bold text-slate-900 mb-5">Chọn khung giờ</h2>
 
+                    <!-- Loading -->
+                    <div v-if="slotsLoading" class="flex items-center gap-2 text-slate-400 text-xs mb-4">
+                        <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                        </svg>
+                        Đang kiểm tra khung giờ trống...
+                    </div>
                     <!-- Morning -->
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">🌅 Buổi sáng</p>
                     <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 mb-5">
                         <button v-for="slot in morningSlots" :key="slot"
-                                @@click="form.time = slot"
-                                :class="form.time === slot
-                                    ? 'bg-brand-primary text-white border-brand-primary shadow-md'
-                                    : 'bg-white border-slate-200 text-slate-600 hover:border-brand-primary hover:text-brand-primary'"
-                                class="py-2.5 rounded-xl border-2 text-sm font-bold transition-all">
+                                @@click="isSlotFull(slot) ? null : (form.time = slot)"
+                                :disabled="isSlotFull(slot)"
+                                :class="isSlotFull(slot)
+                                    ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed'
+                                    : form.time === slot
+                                        ? 'bg-brand-primary text-white border-brand-primary shadow-md'
+                                        : 'bg-white border-slate-200 text-slate-600 hover:border-brand-primary hover:text-brand-primary'"
+                                class="py-2.5 rounded-xl border-2 text-sm font-bold transition-all relative">
                             [[ slot ]]
+                            <span v-if="isSlotFull(slot)" class="absolute -top-2 -right-1 text-[9px] bg-red-400 text-white px-1 rounded-full">Hết</span>
                         </button>
                     </div>
                     <!-- Afternoon -->
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">☀️ Buổi chiều</p>
                     <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 mb-6">
                         <button v-for="slot in afternoonSlots" :key="slot"
-                                @@click="form.time = slot"
-                                :class="form.time === slot
-                                    ? 'bg-brand-primary text-white border-brand-primary shadow-md'
-                                    : 'bg-white border-slate-200 text-slate-600 hover:border-brand-primary hover:text-brand-primary'"
-                                class="py-2.5 rounded-xl border-2 text-sm font-bold transition-all">
+                                @@click="isSlotFull(slot) ? null : (form.time = slot)"
+                                :disabled="isSlotFull(slot)"
+                                :class="isSlotFull(slot)
+                                    ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed'
+                                    : form.time === slot
+                                        ? 'bg-brand-primary text-white border-brand-primary shadow-md'
+                                        : 'bg-white border-slate-200 text-slate-600 hover:border-brand-primary hover:text-brand-primary'"
+                                class="py-2.5 rounded-xl border-2 text-sm font-bold transition-all relative">
                             [[ slot ]]
+                            <span v-if="isSlotFull(slot)" class="absolute -top-2 -right-1 text-[9px] bg-red-400 text-white px-1 rounded-full">Hết</span>
                         </button>
                     </div>
                     <!-- Note -->
@@ -223,7 +239,7 @@
 
 @section Scripts {
 <script>
-const { createApp, ref, computed } = Vue;
+const { createApp, ref, computed, onMounted } = Vue;
 createApp({
     delimiters: ['[[',']]'],
     setup() {
@@ -235,17 +251,50 @@ createApp({
 
         const form = ref({ serviceId: null, serviceName: '', date: '', time: '', note: '' });
 
-        const services = [
-            { id:1, name:'Khám & Soi da 3D',               icon:'🔬', desc:'Chẩn đoán tình trạng da chuyên sâu',    price:'300.000đ / lượt'  },
-            { id:2, name:'Lấy nhân mụn chuẩn Y khoa',      icon:'💉', desc:'Cho da viêm, mụn bọc, mụn mủ',          price:'400.000đ / lượt'  },
-            { id:3, name:'Peel da sinh học BHA/AHA',        icon:'✨', desc:'Tẩy tế bào chết, tái tạo da',           price:'800.000đ / lượt'  },
-            { id:4, name:'Điện di Ion phục hồi B5',         icon:'⚡', desc:'Phục hồi da nhạy cảm, corticoid',      price:'500.000đ / lượt'  },
-            { id:5, name:'Chiếu ánh sáng Omega Light',      icon:'💡', desc:'Diệt khuẩn, giảm viêm không xâm lấn',  price:'200.000đ / lượt'  },
-            { id:6, name:'Tư vấn lập phác đồ cá nhân',     icon:'📋', desc:'Bác sĩ thiết kế phác đồ riêng cho bạn', price:'Miễn phí'          },
-        ];
+        const services = ref([]);
+
+        // Pre-select serviceId from URL ?serviceId=N
+        const urlParams  = new URLSearchParams(window.location.search);
+        const preService = parseInt(urlParams.get('serviceId') || '0');
 
         const morningSlots   = ['08:00','08:30','09:00','09:30','10:00','10:30'];
         const afternoonSlots = ['13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'];
+
+        // Icons map by index
+        const icons = ['🔬','💉','✨','⚡','💡','📋','🏥','💊','🩺','🌿'];
+
+        onMounted(async () => {
+            try {
+                const res  = await fetch('/api/servicesapi');
+                const data = await res.json();
+                services.value = data.map((s, i) => ({
+                    id:    s.serviceId,
+                    name:  s.serviceName,
+                    icon:  icons[i % icons.length],
+                    desc:  'Dịch vụ chuyên khoa da liễu',
+                    price: s.price.toLocaleString('vi-VN') + 'đ / lượt'
+                }));
+                // Pre-select if serviceId in URL
+                if (preService > 0) {
+                    const found = services.value.find(s => s.id === preService);
+                    if (found) {
+                        form.value.serviceId   = found.id;
+                        form.value.serviceName = found.name;
+                        step.value = 2; // skip to date picker
+                    }
+                }
+            } catch {
+                // Fallback to static if API fails
+                services.value = [
+                    { id:1, name:'Khám & Soi da 3D',               icon:'🔬', desc:'Chẩn đoán tình trạng da chuyên sâu',    price:'Liên hệ' },
+                    { id:2, name:'Lấy nhân mụn chuẩn Y khoa',      icon:'💉', desc:'Cho da viêm, mụn bọc, mụn mủ',          price:'Liên hệ' },
+                    { id:3, name:'Peel da sinh học BHA/AHA',        icon:'✨', desc:'Tẩy tế bào chết, tái tạo da',           price:'Liên hệ' },
+                    { id:4, name:'Điện di Ion phục hồi B5',         icon:'⚡', desc:'Phục hồi da nhạy cảm, corticoid',      price:'Liên hệ' },
+                    { id:5, name:'Chiếu ánh sáng Omega Light',      icon:'💡', desc:'Diệt khuẩn, giảm viêm không xâm lấn',  price:'Liên hệ' },
+                    { id:6, name:'Tư vấn lập phác đồ cá nhân',     icon:'📋', desc:'Bác sĩ thiết kế phác đồ riêng cho bạn', price:'Miễn phí'},
+                ];
+            }
+        });
 
         // ── Calendar logic ───────────────────────────────────
         const today = new Date(); today.setHours(0,0,0,0);
@@ -276,7 +325,33 @@ createApp({
         const isPast     = (d) => d < today;
         const isToday    = (d) => d.getTime() === today.getTime();
         const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        const selectDate = (d) => { form.value.date = formatDate(d); };
+
+        // ── Slot availability ────────────────────────────────
+        const slotAvailability = ref({});  // { '08:00': true/false (full) }
+        const slotsLoading     = ref(false);
+
+        const fetchSlots = async (dateStr) => {
+            if (!dateStr) return;
+            slotsLoading.value = true;
+            try {
+                const res  = await fetch(`/api/servicesapi/slots?date=${dateStr}`);
+                const data = await res.json();
+                const map  = {};
+                data.forEach(s => { map[s.slot] = s.full; });
+                slotAvailability.value = map;
+                // Clear selected time if it's now full
+                if (form.value.time && map[form.value.time]) form.value.time = '';
+            } catch { slotAvailability.value = {}; }
+            slotsLoading.value = false;
+        };
+
+        const isSlotFull = (slot) => slotAvailability.value[slot] === true;
+
+        const selectDate = (d) => {
+            const dateStr = formatDate(d);
+            form.value.date = dateStr;
+            fetchSlots(dateStr);
+        };
         const displayDate = computed(() => {
             if (!form.value.date) return '';
             const [y,m,day] = form.value.date.split('-');
@@ -318,8 +393,9 @@ createApp({
 
         return { step, steps, form, booked, submitting, bookErr, services,
                  morningSlots, afternoonSlots, canNext, next, submit,
-                 calYear, calMonth, calCells, monthNames,
-                 prevMonth, nextMonth, isPast, isToday, formatDate, selectDate, displayDate };
+                 calYear, calMonth, calCells, monthNames, slotsLoading,
+                 prevMonth, nextMonth, isPast, isToday, formatDate, selectDate, displayDate,
+                 slotAvailability, isSlotFull };
     }
 }).mount('#app');
 </script>

@@ -219,11 +219,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             }
         );
 
-        modelBuilder.Entity<Service>().HasData(
-            new Service { ServiceId = 1, ServiceName = "Skin Consultation", Price = 200_000m },
-            new Service { ServiceId = 2, ServiceName = "Laser Acne Treatment", Price = 800_000m },
-            new Service { ServiceId = 3, ServiceName = "Chemical Peel", Price = 600_000m }
-        );
 
         // ── Category unique index ──────────────────────────────────────────
         modelBuilder.Entity<Category>()

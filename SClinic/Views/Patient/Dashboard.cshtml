@@ -61,6 +61,11 @@
                    class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors">
                     👤 Hồ sơ cá nhân
                 </a>
+                <a href="#" @@click.prevent="tab='invoices'"
+                   :class="tab==='invoices'?'bg-teal-50 text-brand-primary font-semibold':'text-slate-600 hover:bg-slate-50 font-medium'"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors">
+                    🧾 Hóa đơn của tôi
+                </a>
             </nav>
         </div>
         <div class="p-4 border-t border-slate-100">
@@ -180,11 +185,18 @@
                                 {
                                     var icon  = a.Status == SClinic.Models.AppointmentStatus.Completed ? "✓" : "📅";
                                     var color = a.Status == SClinic.Models.AppointmentStatus.Completed ? "green" : "blue";
+                                    var viStatus = a.Status switch {
+                                        SClinic.Models.AppointmentStatus.Pending   => "Chờ xác nhận",
+                                        SClinic.Models.AppointmentStatus.Confirmed => "Đã xác nhận",
+                                        SClinic.Models.AppointmentStatus.Completed => "Hoàn thành",
+                                        SClinic.Models.AppointmentStatus.Cancelled => "Đã huỷ",
+                                        _ => a.Status.ToString()
+                                    };
                                     <div class="flex gap-4">
                                         <div class="w-8 h-8 rounded-full bg-@(color)-100 text-@(color)-600 flex items-center justify-center flex-shrink-0 text-xs">@icon</div>
                                         <div>
-                                            <p class="text-sm font-bold text-slate-900">@a.Status</p>
-                                            <p class="text-xs text-slate-500 mt-1">@a.Schedule?.WorkDate.ToString("dd/MM/yyyy")</p>
+                                            <p class="text-sm font-bold text-slate-900">@viStatus</p>
+                                            <p class="text-xs text-slate-500 mt-1">@a.Schedule?.WorkDate.ToString("dd/MM/yyyy") lúc @a.Schedule?.TimeSlot.ToString(@"hh\:mm")</p>
                                         </div>
                                     </div>
                                 }
@@ -210,19 +222,37 @@
                     }
                     @foreach (var a in appointments.OrderByDescending(x => x.Schedule?.WorkDate))
                     {
+                        var viStatus2 = a.Status switch {
+                            SClinic.Models.AppointmentStatus.Pending   => "Chờ xác nhận",
+                            SClinic.Models.AppointmentStatus.Confirmed => "Đã xác nhận",
+                            SClinic.Models.AppointmentStatus.Completed => "Hoàn thành",
+                            SClinic.Models.AppointmentStatus.Cancelled => "Đã huỷ",
+                            _ => a.Status.ToString()
+                        };
+                        var badgeClass = a.Status switch {
+                            SClinic.Models.AppointmentStatus.Pending   => "bg-amber-100 text-amber-700",
+                            SClinic.Models.AppointmentStatus.Confirmed => "bg-blue-100 text-blue-700",
+                            SClinic.Models.AppointmentStatus.Completed => "bg-emerald-100 text-emerald-700",
+                            SClinic.Models.AppointmentStatus.Cancelled => "bg-slate-100 text-slate-500",
+                            _ => "bg-slate-100 text-slate-500"
+                        };
                         var borderColor = a.Status == SClinic.Models.AppointmentStatus.Confirmed ? "border-l-brand-primary" : "border-l-slate-300";
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 border-l-4 @borderColor mb-4 hover:shadow-md transition-shadow">
                             <div class="flex justify-between items-start mb-4">
                                 <div>
-                                    <span class="bg-brand-primary/10 text-brand-primary text-xs font-bold px-3 py-1 rounded-full inline-block mb-2">@a.Status</span>
-                                    <h3 class="text-xl font-bold text-slate-900">Bs. @(a.Schedule?.Doctor?.FullName ?? "—")</h3>
+                                    <span class="@badgeClass text-xs font-bold px-3 py-1 rounded-full inline-block mb-2">@viStatus2</span>
+                                    <h3 class="text-xl font-bold text-slate-900">@(a.Schedule?.Doctor?.FullName ?? "—")</h3>
+                                    @if (!string.IsNullOrEmpty(a.Notes))
+                                    {
+                                        <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5 mt-2 inline-block">📝 @a.Notes</p>
+                                    }
                                 </div>
                                 <p class="font-mono font-bold text-slate-500 text-sm">#APT-@a.AppointmentId.ToString("D4")</p>
                             </div>
                             <div class="grid grid-cols-2 md:grid-cols-3 gap-4 py-4 border-t border-slate-100">
                                 <div><p class="text-xs text-slate-400 mb-1">Ngày khám</p><p class="font-bold text-slate-800">@a.Schedule?.WorkDate.ToString("dd/MM/yyyy")</p></div>
                                 <div><p class="text-xs text-slate-400 mb-1">Giờ khám</p><p class="font-bold text-slate-800">@a.Schedule?.TimeSlot.ToString(@"hh\:mm")</p></div>
-                                <div><p class="text-xs text-slate-400 mb-1">Trạng thái</p><p class="font-bold text-slate-800">@a.Status</p></div>
+                                <div><p class="text-xs text-slate-400 mb-1">Trạng thái</p><p class="font-bold text-slate-800">@viStatus2</p></div>
                             </div>
                         </div>
                     }
@@ -299,6 +329,34 @@
                     </div>
                 </div>
 
+                <!-- ── INVOICES TAB ──────────────────────────────────────────── -->
+                <div v-else-if="tab==='invoices'" key="invoices">
+                    <h2 class="text-2xl font-bold text-slate-900 mb-6">🧾 Hóa đơn của tôi</h2>
+                    <div v-if="invoices.length === 0" class="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                        <p class="text-slate-400">Chưa có hóa đơn nào.</p>
+                    </div>
+                    <div v-for="inv in invoices" :key="inv.invoiceId" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <span :class="inv.status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
+                                      class="text-xs font-bold px-3 py-1 rounded-full">
+                                    [[ inv.status === 'Paid' ? '✅ Đã thanh toán' : '⏳ Chờ thanh toán' ]]
+                                </span>
+                                <p class="text-xs text-slate-400 mt-1">#HD-[[ String(inv.invoiceId).padStart(4,'0') ]] &bull; [[ inv.createdDate ]]</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-2xl font-extrabold text-brand-primary">[[ inv.totalAmount.toLocaleString('vi-VN') ]]đ</p>
+                            </div>
+                        </div>
+                        <div v-if="inv.details && inv.details.length" class="border-t border-slate-100 pt-4 space-y-2">
+                            <div v-for="d in inv.details" :key="d.line" class="flex justify-between text-sm">
+                                <span class="text-slate-600">[[ d.name ]] x[[ d.qty ]]</span>
+                                <span class="font-semibold text-slate-800">[[ d.total.toLocaleString('vi-VN') ]]đ</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </transition>
         </div>
     </main>
@@ -328,12 +386,24 @@
 
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script>
-const { createApp, ref } = Vue;
+const { createApp, ref, onMounted } = Vue;
 createApp({
+    delimiters: ['[[',']]'],
     setup() {
         const tab = ref('overview');
         const bookingOpen = ref(false);
-        return { tab, bookingOpen };
+        const invoices = ref([]);
+
+        const loadInvoices = async () => {
+            try {
+                const res  = await fetch('/api/patient/invoices');
+                const data = await res.json();
+                invoices.value = data;
+            } catch { /* silent */ }
+        };
+
+        onMounted(() => loadInvoices());
+        return { tab, bookingOpen, invoices };
     }
 }).mount('#app');
 </script>
