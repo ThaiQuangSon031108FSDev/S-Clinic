@@ -1,0 +1,257 @@
+@{
+    ViewData["Title"] = "Đăng ký BN";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+<div id="app" class="max-w-2xl mx-auto">
+    <!-- Step indicator -->
+    <div class="flex items-center gap-2 mb-8">
+        <div v-for="(s, i) in steps" :key="i" class="flex items-center gap-2">
+            <div :class="step >= i+1 ? 'bg-brand-primary text-white' : 'bg-slate-100 text-slate-400'"
+                 class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors">
+                <span v-if="step > i+1">✓</span>
+                <span v-else>[[ i+1 ]]</span>
+            </div>
+            <span :class="step >= i+1 ? 'text-slate-900 font-semibold' : 'text-slate-400'" class="text-sm hidden sm:block">[[ s ]]</span>
+            <div v-if="i < steps.length-1" class="flex-1 h-px bg-slate-200 w-8 sm:w-16 mx-2"></div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+
+        <!-- Step 1: Thông tin cơ bản -->
+        <div v-if="step===1">
+            <h2 class="text-xl font-bold text-slate-900 mb-1">Thông tin bệnh nhân</h2>
+            <p class="text-slate-500 text-sm mb-6">Nhập thông tin để tạo hồ sơ bệnh nhân mới hoặc đặt lịch.</p>
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Họ và tên <span class="text-red-500">*</span></label>
+                    <input v-model="form.fullName" type="text" placeholder="Nguyễn Văn A"
+                           class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                    <p v-if="errors.fullName" class="text-xs text-red-500 mt-1">⚠️ [[ errors.fullName ]]</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Số điện thoại <span class="text-red-500">*</span></label>
+                        <input v-model="form.phone" type="tel" placeholder="0912345678"
+                               class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                        <p v-if="errors.phone" class="text-xs text-red-500 mt-1">⚠️ [[ errors.phone ]]</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Ngày sinh</label>
+                        <input v-model="form.dob" type="date"
+                               class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Tiền sử dị ứng / Bệnh nền</label>
+                    <textarea v-model="form.medHistory" rows="2" placeholder="Dị ứng Penicillin, đang dùng thuốc huyết áp..."
+                              class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Ghi chú lý do đến khám</label>
+                    <textarea v-model="form.reason" rows="2" placeholder="Mụn trứng cá viêm nặng, đã tự điều trị 3 tháng..."
+                              class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none resize-none"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Đặt lịch -->
+        <div v-if="step===2">
+            <h2 class="text-xl font-bold text-slate-900 mb-1">Chọn Bác sĩ & Khung giờ</h2>
+            <p class="text-slate-500 text-sm mb-6">Chọn bác sĩ và khung giờ phù hợp cho bệnh nhân.</p>
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Bác sĩ điều trị <span class="text-red-500">*</span></label>
+                    <select v-model="form.doctorId" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none">
+                        <option value="">-- Chọn bác sĩ --</option>
+                        <option v-for="d in doctors" :key="d.id" :value="d.id">[[ d.name ]] – [[ d.specialty ]]</option>
+                    </select>
+                    <p v-if="errors.doctorId" class="text-xs text-red-500 mt-1">⚠️ [[ errors.doctorId ]]</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Ngày khám <span class="text-red-500">*</span></label>
+                    <input v-model="form.apptDate" type="date" :min="today"
+                           class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                    <p v-if="errors.apptDate" class="text-xs text-red-500 mt-1">⚠️ [[ errors.apptDate ]]</p>
+                </div>
+                <div v-if="form.apptDate && form.doctorId">
+                    <label class="block text-sm font-bold text-slate-700 mb-3">Khung giờ còn trống</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button v-for="slot in timeSlots" :key="slot.time"
+                                @@click="form.timeSlot = slot.time"
+                                :class="form.timeSlot===slot.time ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white border-slate-200 text-slate-700 hover:border-brand-primary'"
+                                class="py-2.5 rounded-xl border-2 text-sm font-semibold transition-all">
+                            [[ slot.time ]]
+                        </button>
+                    </div>
+                </div>
+                <div v-if="!form.apptDate || !form.doctorId" class="text-sm text-slate-400 text-center py-4 bg-slate-50 rounded-xl">
+                    Chọn bác sĩ và ngày để xem khung giờ trống
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Xác nhận -->
+        <div v-if="step===3">
+            <h2 class="text-xl font-bold text-slate-900 mb-1">Xác nhận Đăng ký</h2>
+            <p class="text-slate-500 text-sm mb-6">Kiểm tra lại thông tin trước khi lưu.</p>
+            <div class="space-y-4">
+                <div class="bg-teal-50 p-5 rounded-xl border border-teal-100">
+                    <p class="text-xs font-bold text-teal-600 uppercase tracking-wider mb-3">Hồ sơ Bệnh nhân</p>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><p class="text-slate-500 text-xs">Họ tên</p><p class="font-bold text-slate-900">[[ form.fullName ]]</p></div>
+                        <div><p class="text-slate-500 text-xs">SĐT</p><p class="font-bold text-slate-900">[[ form.phone ]]</p></div>
+                        <div><p class="text-slate-500 text-xs">Ngày sinh</p><p class="font-bold text-slate-900">[[ form.dob || '—' ]]</p></div>
+                        <div v-if="form.medHistory"><p class="text-slate-500 text-xs">Dị ứng</p><p class="font-bold text-red-600 text-xs">[[ form.medHistory ]]</p></div>
+                    </div>
+                </div>
+                <div class="bg-blue-50 p-5 rounded-xl border border-blue-100">
+                    <p class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">Lịch hẹn</p>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><p class="text-slate-500 text-xs">Bác sĩ</p><p class="font-bold text-slate-900">[[ doctorName ]]</p></div>
+                        <div><p class="text-slate-500 text-xs">Ngày</p><p class="font-bold text-slate-900">[[ form.apptDate ]]</p></div>
+                        <div><p class="text-slate-500 text-xs">Giờ</p><p class="font-bold text-slate-900">[[ form.timeSlot ]]</p></div>
+                    </div>
+                </div>
+                <div v-if="saved" class="flex items-center gap-3 bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                    <span class="text-2xl">✅</span>
+                    <div>
+                        <p class="font-bold text-emerald-700">Đăng ký thành công!</p>
+                        <p class="text-xs text-emerald-600 mt-1">Hồ sơ BN và lịch hẹn đã được tạo. Số thứ tự: #STT-07</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex justify-between items-center mt-8 pt-6 border-t border-slate-100">
+            <button v-if="step > 1 && !saved" @@click="step--"
+                    class="px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+                ← Quay lại
+            </button>
+            <span v-else></span>
+            <div class="flex gap-3">
+                <a v-if="saved" asp-controller="Receptionist" asp-action="Dashboard"
+                   class="px-5 py-2.5 border border-brand-primary text-brand-primary rounded-xl text-sm font-bold hover:bg-teal-50 transition-colors">
+                    Vào Kanban
+                </a>
+                <button v-if="!saved && step < 3" @@click="next" :disabled="!canNext"
+                        :class="!canNext ? 'opacity-50 cursor-not-allowed' : 'hover:bg-brand-hover shadow-md'"
+                        class="px-6 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold transition-all">
+                    Tiếp theo →
+                </button>
+                <button v-if="!saved && step === 3" @@click="submit" :disabled="saving"
+                        class="px-6 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover shadow-md transition-all disabled:opacity-50">
+                    <span v-if="saving">Đang xử lý...</span>
+                    <span v-else>✓ Xác nhận & Lưu</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const { createApp, ref, computed, onMounted } = Vue;
+createApp({
+    delimiters: ['[[',']]'],
+    setup() {
+        const step  = ref(1);
+        const saved = ref(false);
+        const saving = ref(false);
+        const steps = ref(['Hồ sơ', 'Lịch hẹn', 'Xác nhận']);
+        const today = new Date().toISOString().split('T')[0];
+
+        const form = ref({
+            fullName:'', phone:'', dob:null, medHistory:'', reason:'',
+            doctorId:'', apptDate:'', timeSlot:''
+        });
+
+        const doctors = ref([]);
+
+        onMounted(async () => {
+            try {
+                const res = await fetch('/api/doctorsapi');
+                const data = await res.json();
+                doctors.value = data.map(d => ({ id: d.id, name: d.fullName, specialty: d.specialty }));
+            } catch (err) { }
+        });
+
+        const timeSlots = computed(() => [
+            { time:'08:00' }, { time:'08:30' }, { time:'09:00' }, { time:'09:30' },
+            { time:'10:00' }, { time:'10:30' }, { time:'14:00' }, { time:'14:30' },
+            { time:'15:00' }, { time:'15:30' }, { time:'16:00' }, { time:'16:30' },
+        ]);
+
+        const doctorName = computed(() => doctors.value.find(d => d.id == form.value.doctorId)?.name || '—');
+
+        const errors = ref({});
+
+        const validate = () => {
+            const e = {};
+            if (step.value === 1) {
+                if (!form.value.fullName.trim()) e.fullName = 'Vui lòng nhập họ tên.';
+                else if (/\d/.test(form.value.fullName)) e.fullName = 'Họ tên không được chứa chữ số.';
+                if (!form.value.phone.trim()) e.phone = 'Vui lòng nhập số điện thoại.';
+                else if (!/^0\d{9}$/.test(form.value.phone)) e.phone = 'SĐT phải 10 số và bắt đầu bằng 0.';
+            }
+            if (step.value === 2) {
+                if (!form.value.doctorId) e.doctorId = 'Vui lòng chọn bác sĩ.';
+                if (!form.value.apptDate) e.apptDate = 'Vui lòng chọn ngày khám.';
+                else if (form.value.apptDate < today) e.apptDate = 'Không thể đặt lịch ngày đã qua.';
+                if (!form.value.timeSlot) e.timeSlot = 'Vui lòng chọn khung giờ.';
+            }
+            errors.value = e;
+            return Object.keys(e).length === 0;
+        };
+
+        const canNext = computed(() => {
+            if (step.value === 1) return form.value.fullName.trim() && form.value.phone.trim();
+            if (step.value === 2) return form.value.doctorId && form.value.apptDate && form.value.timeSlot;
+            return true;
+        });
+
+        const next = () => { if (validate()) step.value++; };
+        const submit = async () => {
+            saving.value = true;
+            try {
+                const payload = {
+                    FullName: form.value.fullName,
+                    Phone: form.value.phone,
+                    Dob: form.value.dob || null,
+                    MedHistory: form.value.medHistory,
+                    Reason: form.value.reason,
+                    DoctorId: parseInt(form.value.doctorId),
+                    Date: form.value.apptDate,
+                    Time: form.value.timeSlot + ':00'
+                };
+
+                const res = await fetch('/api/appointmentsapi', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    saved.value = true;
+                    // Tự động reload lại về trang danh sách Kanban / Lịch hẹn sau 3s (nếu user lười bấm)
+                    setTimeout(() => {
+                        window.location.href = '/Receptionist/Dashboard';
+                    }, 3000);
+                } else {
+                    alert('Lỗi lưu đăng ký mới. Xin kiểm tra lại.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Có lỗi nối kết tới server!');
+            } finally {
+                saving.value = false;
+            }
+        };
+
+        return { step, saved, saving, steps, form, today, doctors, timeSlots, doctorName, canNext, errors, next, submit };
+    }
+}).mount('#app');
+</script>
+}

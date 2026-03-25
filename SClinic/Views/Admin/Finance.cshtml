@@ -1,0 +1,185 @@
+@{
+    ViewData["Title"] = "Thu ngân";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+<div id="app">
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-amber-400 flex items-center gap-4">
+            <div class="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-lg">⏳</div>
+            <div>
+                <p class="text-xs text-slate-500 font-semibold">Chờ thanh toán</p>
+                <p class="text-2xl font-extrabold text-slate-900">[[ pending.length ]]</p>
+            </div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500 flex items-center gap-4">
+            <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-lg">✓</div>
+            <div>
+                <p class="text-xs text-slate-500 font-semibold">Đã thu hôm nay</p>
+                <p class="text-2xl font-extrabold text-slate-900">[[ paidCount ]] HĐ</p>
+            </div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-brand-primary flex items-center gap-4">
+            <div class="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center text-lg">💰</div>
+            <div>
+                <p class="text-xs text-slate-500 font-semibold">Doanh thu hôm nay</p>
+                <p class="text-xl font-extrabold text-slate-900">1.749.000đ</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters + table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row gap-3 bg-slate-50/50">
+            <div class="flex gap-2">
+                <button @@click="filter='all'"
+                        :class="filter==='all'?'bg-slate-900 text-white':'bg-white border border-slate-200 text-slate-600'"
+                        class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors">Tất cả</button>
+                <button @@click="filter='pending'"
+                        :class="filter==='pending'?'bg-amber-500 text-white':'bg-white border border-slate-200 text-slate-600'"
+                        class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors">Chờ thu ([[ pending.length ]])</button>
+                <button @@click="filter='paid'"
+                        :class="filter==='paid'?'bg-emerald-500 text-white':'bg-white border border-slate-200 text-slate-600'"
+                        class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors">Đã thu</button>
+            </div>
+            <input type="text" v-model="search" placeholder="Tìm Mã HĐ, Tên KH..."
+                   class="sm:ml-auto text-sm border border-slate-200 rounded-lg px-4 py-2 w-full sm:w-64 focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+        </div>
+
+        <table class="w-full text-left">
+            <thead>
+                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                    <th class="px-6 py-4 font-semibold">Mã HĐ</th>
+                    <th class="px-6 py-4 font-semibold">Bệnh nhân</th>
+                    <th class="px-6 py-4 font-semibold">Dịch vụ</th>
+                    <th class="px-6 py-4 font-semibold">Tổng tiền</th>
+                    <th class="px-6 py-4 font-semibold">Trạng thái</th>
+                    <th class="px-6 py-4 font-semibold text-right">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                <tr v-for="inv in filteredInvoices" :key="inv.id"
+                    :class="inv.status==='pending' ? 'bg-amber-50/20' : ''"
+                    class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4 font-mono text-sm font-bold text-slate-500">#INV-[[ String(inv.id).padStart(4,'0') ]]</td>
+                    <td class="px-6 py-4">
+                        <p class="text-sm font-bold text-slate-900">[[ inv.patient ]]</p>
+                        <p class="text-xs text-slate-400">[[ inv.time ]]</p>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-slate-600">[[ inv.service ]]</td>
+                    <td class="px-6 py-4 text-sm font-extrabold text-slate-800">[[ inv.amount ]]</td>
+                    <td class="px-6 py-4">
+                        <span :class="inv.status==='paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
+                              class="text-xs font-bold px-3 py-1 rounded-full">
+                            [[ inv.status==='paid' ? 'Đã thu' : 'Chờ thu' ]]
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button v-if="inv.status==='pending'" @@click="collect(inv)"
+                                class="px-4 py-1.5 bg-brand-primary text-white rounded-lg text-xs font-bold hover:bg-brand-hover transition-colors">
+                            Thu tiền ✓
+                        </button>
+                        <span v-else class="text-xs text-slate-400">Hoàn tất</span>
+                    </td>
+                </tr>
+                <tr v-if="!filteredInvoices.length">
+                    <td colspan="6" class="px-6 py-12 text-center text-slate-400">Không có hóa đơn nào.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Collect modal -->
+    <div v-if="modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h2 class="text-xl font-bold text-slate-900">Xác nhận Thu tiền</h2>
+                <button @@click="modal=null" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-red-100 hover:text-red-600 font-bold flex items-center justify-center">✕</button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="bg-teal-50 p-4 rounded-xl border border-teal-100 text-center">
+                    <p class="text-sm text-slate-600">Tổng tiền cần thu</p>
+                    <p class="text-4xl font-extrabold text-brand-primary mt-1">[[ modal.amount ]]</p>
+                    <p class="text-sm text-slate-500 mt-1">[[ modal.patient ]]</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Phương thức thanh toán</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <button v-for="m in ['Tiền mặt','Chuyển khoản','Quẹt thẻ']" :key="m"
+                                @@click="payMethod=m"
+                                :class="payMethod===m ? 'border-brand-primary bg-teal-50 text-brand-primary' : 'border-slate-200 text-slate-600'"
+                                class="py-2.5 rounded-xl border-2 text-sm font-semibold transition-colors">
+                            [[ m ]]
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end">
+                <button @@click="modal=null" class="px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600">Huỷ</button>
+                <button @@click="confirmCollect" class="px-6 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover shadow-md">✓ Xác nhận Thu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const { createApp, ref, computed, onMounted } = Vue;
+createApp({
+    delimiters: ['[[', ']]'],
+    setup() {
+        const filter    = ref('all');
+        const search    = ref('');
+        const modal     = ref(null);
+        const payMethod = ref('Tiền mặt');
+        const invoices  = ref([]);
+
+        // ── Load real data from DB ──────────────────────────
+        const loadData = async () => {
+            const res  = await fetch('/api/invoicesapi');
+            const data = await res.json();
+            invoices.value = data.map(i => ({
+                id:      i.invoiceId,
+                patient: `Hóa đơn #INV-${String(i.invoiceId).padStart(4,'0')}`,
+                service: '',
+                amount:  Number(i.totalAmount).toLocaleString('vi-VN') + 'đ',
+                time:    i.createdDate,
+                status:  i.status === 'Paid' ? 'paid' : 'pending'
+            }));
+        };
+        onMounted(loadData);
+
+        // ── Computed ────────────────────────────────────────
+        const pending          = computed(() => invoices.value.filter(i => i.status === 'pending'));
+        const paidCount        = computed(() => invoices.value.filter(i => i.status === 'paid').length);
+        const filteredInvoices = computed(() => {
+            let list = invoices.value;
+            if (filter.value !== 'all') list = list.filter(i => i.status === filter.value);
+            if (search.value) list = list.filter(i =>
+                i.patient.toLowerCase().includes(search.value.toLowerCase()) ||
+                String(i.id).includes(search.value));
+            return list;
+        });
+
+        // ── Actions ─────────────────────────────────────────
+        const collect = (inv) => { modal.value = inv; payMethod.value = 'Tiền mặt'; };
+
+        const confirmCollect = async () => {
+            if (!modal.value) return;
+            const inv = modal.value;
+            const res = await fetch(`/api/invoicesapi/${inv.id}/collect`, {
+                method:  'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ method: payMethod.value })
+            });
+            if (res.ok) { inv.status = 'paid'; }
+            modal.value = null;
+        };
+
+        return { filter, search, modal, payMethod, invoices, pending, paidCount, filteredInvoices, collect, confirmCollect };
+    }
+}).mount('#app');
+</script>
+}
+

@@ -1,0 +1,326 @@
+@{
+    ViewData["Title"] = "Đặt lịch khám";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+.cal-day { width:40px; height:40px; display:flex; align-items:center; justify-content:center;
+           border-radius:50%; font-size:14px; font-weight:600; cursor:pointer; transition:all .15s; }
+.cal-day:hover:not(.cal-empty):not(.cal-past) { background:#f0fdfa; color:#0d9488; }
+.cal-day.cal-today { border:2px solid #0d9488; color:#0d9488; }
+.cal-day.cal-selected { background:#0d9488 !important; color:#fff !important; font-weight:900; }
+.cal-day.cal-past { color:#cbd5e1; cursor:not-allowed; }
+.cal-day.cal-empty { cursor:default; }
+</style>
+
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-teal-50/30 pt-28 pb-16 px-4">
+    <div class="max-w-2xl mx-auto">
+
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-slate-900 mb-2">Đặt lịch khám</h1>
+            <p class="text-slate-500 text-sm">Bác sĩ sẽ được phân công tự động phù hợp với lịch trống.</p>
+        </div>
+
+        <div id="app">
+            <!-- Step bar -->
+            <div class="flex items-center justify-center mb-8 gap-0">
+                <div v-for="(s, i) in steps" :key="i" class="flex items-center">
+                    <div class="flex flex-col items-center">
+                        <div :class="step > i+1 ? 'bg-emerald-500' : step === i+1 ? 'bg-brand-primary ring-4 ring-teal-100' : 'bg-slate-200'"
+                             class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold transition-all">
+                            <span v-if="step > i+1" class="text-xs">✓</span>
+                            <span v-else class="text-xs">[[ i+1 ]]</span>
+                        </div>
+                        <span :class="step >= i+1 ? 'text-slate-700 font-semibold' : 'text-slate-400'"
+                              class="text-xs mt-1.5 hidden sm:block">[[ s ]]</span>
+                    </div>
+                    <div v-if="i < steps.length-1"
+                         :class="step > i+1 ? 'bg-emerald-400' : 'bg-slate-200'"
+                         class="h-0.5 w-16 mx-1 mb-3 transition-colors"></div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl shadow-xl border border-slate-100">
+
+                <!-- ─── STEP 1: Dịch vụ ─────────────────────────── -->
+                <div v-if="step===1" class="p-8">
+                    <h2 class="text-xl font-bold text-slate-900 mb-1">Bạn cần hỗ trợ gì?</h2>
+                    <p class="text-slate-400 text-sm mb-6">Chọn mục đích khám để chúng tôi chuẩn bị tốt nhất cho bạn.</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button v-for="svc in services" :key="svc.id"
+                                @@click="form.serviceId = svc.id; form.serviceName = svc.name"
+                                :class="form.serviceId === svc.id
+                                    ? 'border-brand-primary bg-teal-50 shadow-lg scale-[1.02]'
+                                    : 'border-slate-200 hover:border-teal-300 hover:bg-teal-50/50'"
+                                class="p-4 rounded-2xl border-2 text-left transition-all duration-200 group">
+                            <div class="text-2xl mb-2">[[ svc.icon ]]</div>
+                            <p class="text-sm font-bold text-slate-900 leading-snug">[[ svc.name ]]</p>
+                            <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">[[ svc.desc ]]</p>
+                            <p class="text-xs font-extrabold text-brand-primary mt-2.5">[[ svc.price ]]</p>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ─── STEP 2: Chọn ngày (Calendar) ──────────────── -->
+                <div v-if="step===2" class="p-8">
+                    <div class="flex items-center gap-3 mb-5">
+                        <span class="bg-teal-100 text-brand-primary text-xs font-bold px-3 py-1.5 rounded-full">
+                            [[ form.serviceName ]]
+                        </span>
+                        <span class="bg-sky-50 text-sky-600 text-xs font-semibold px-3 py-1.5 rounded-full">
+                            🩺 Bác sĩ tự động phân công
+                        </span>
+                    </div>
+                    <h2 class="text-xl font-bold text-slate-900 mb-5">Chọn ngày khám</h2>
+
+                    <!-- Calendar -->
+                    <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                        <!-- Month nav -->
+                        <div class="flex items-center justify-between mb-4">
+                            <button @@click="prevMonth"
+                                    class="w-9 h-9 rounded-full hover:bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-brand-primary transition-colors font-bold">‹</button>
+                            <span class="text-base font-extrabold text-slate-800">
+                                [[ monthNames[calMonth] ]] [[ calYear ]]
+                            </span>
+                            <button @@click="nextMonth"
+                                    class="w-9 h-9 rounded-full hover:bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-brand-primary transition-colors font-bold">›</button>
+                        </div>
+                        <!-- Weekday headers -->
+                        <div class="grid grid-cols-7 mb-2">
+                            <div v-for="d in ['CN','T2','T3','T4','T5','T6','T7']" :key="d"
+                                 class="cal-day cal-empty text-[11px] font-bold text-slate-400">[[ d ]]</div>
+                        </div>
+                        <!-- Day cells -->
+                        <div class="grid grid-cols-7 gap-y-1">
+                            <div v-for="(cell, idx) in calCells" :key="idx"
+                                 :class="[
+                                     'cal-day',
+                                     cell === null ? 'cal-empty' : '',
+                                     cell && isPast(cell) ? 'cal-past' : '',
+                                     cell && isToday(cell) ? 'cal-today' : '',
+                                     cell && form.date === formatDate(cell) ? 'cal-selected' : '',
+                                 ]"
+                                 @@click="cell && !isPast(cell) ? selectDate(cell) : null">
+                                [[ cell ? cell.getDate() : '' ]]
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Selected date display -->
+                    <div v-if="form.date" class="mt-4 flex items-center gap-2 text-sm text-brand-primary font-bold">
+                        <span>📅</span> Ngày đã chọn: [[ displayDate ]]
+                    </div>
+                </div>
+
+                <!-- ─── STEP 3: Khung giờ & Ghi chú ──────────────── -->
+                <div v-if="step===3" class="p-8">
+                    <div class="flex items-center gap-2 mb-5">
+                        <span class="bg-teal-100 text-brand-primary text-xs font-bold px-3 py-1.5 rounded-full">📅 [[ displayDate ]]</span>
+                    </div>
+                    <h2 class="text-xl font-bold text-slate-900 mb-5">Chọn khung giờ</h2>
+
+                    <!-- Morning -->
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">🌅 Buổi sáng</p>
+                    <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 mb-5">
+                        <button v-for="slot in morningSlots" :key="slot"
+                                @@click="form.time = slot"
+                                :class="form.time === slot
+                                    ? 'bg-brand-primary text-white border-brand-primary shadow-md'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:border-brand-primary hover:text-brand-primary'"
+                                class="py-2.5 rounded-xl border-2 text-sm font-bold transition-all">
+                            [[ slot ]]
+                        </button>
+                    </div>
+                    <!-- Afternoon -->
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">☀️ Buổi chiều</p>
+                    <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 mb-6">
+                        <button v-for="slot in afternoonSlots" :key="slot"
+                                @@click="form.time = slot"
+                                :class="form.time === slot
+                                    ? 'bg-brand-primary text-white border-brand-primary shadow-md'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:border-brand-primary hover:text-brand-primary'"
+                                class="py-2.5 rounded-xl border-2 text-sm font-bold transition-all">
+                            [[ slot ]]
+                        </button>
+                    </div>
+                    <!-- Note -->
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">
+                            Ghi chú triệu chứng
+                            <span class="text-xs font-normal text-slate-400 ml-1">(tuỳ chọn)</span>
+                        </label>
+                        <textarea v-model="form.note" rows="3"
+                                  placeholder="Ví dụ: Mụn viêm lâu năm, đang dùng Retinol 0.5%..."
+                                  class="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-primary focus:outline-none resize-none transition-all"></textarea>
+                    </div>
+                </div>
+
+                <!-- ─── STEP 4: Xác nhận ───────────────────────────── -->
+                <div v-if="step===4 && !booked" class="p-8">
+                    <h2 class="text-xl font-bold text-slate-900 mb-6">Xác nhận lịch hẹn</h2>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
+                            <span class="text-sm text-slate-500 font-medium">Dịch vụ</span>
+                            <span class="text-sm font-bold text-slate-900 text-right max-w-[55%]">[[ form.serviceName ]]</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-sky-50 rounded-xl border border-sky-100">
+                            <span class="text-sm text-sky-600 font-medium">🩺 Bác sĩ</span>
+                            <span class="text-sm font-bold text-sky-800">Phân công tự động</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-teal-50 rounded-xl border border-teal-100">
+                            <span class="text-sm text-slate-500 font-medium">Ngày khám</span>
+                            <span class="text-sm font-bold text-slate-900">[[ displayDate ]]</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-teal-50 rounded-xl border border-teal-100">
+                            <span class="text-sm text-slate-500 font-medium">Giờ khám</span>
+                            <span class="text-2xl font-extrabold text-brand-primary">[[ form.time ]]</span>
+                        </div>
+                        <div v-if="form.note" class="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                            <p class="text-xs text-amber-700 font-bold mb-1">📝 Ghi chú của bạn</p>
+                            <p class="text-sm text-amber-800">[[ form.note ]]</p>
+                        </div>
+                    </div>
+                    <p v-if="bookErr" class="text-red-500 text-sm mt-4 bg-red-50 p-3 rounded-xl border border-red-100">⚠️ [[ bookErr ]]</p>
+                </div>
+
+                <!-- ─── Done ─────────────────────────────────────── -->
+                <div v-if="booked" class="p-10 text-center">
+                    <div class="text-7xl mb-5 animate-bounce">🎉</div>
+                    <h2 class="text-2xl font-extrabold text-slate-900 mb-2">Đặt lịch thành công!</h2>
+                    <p class="text-slate-500 text-sm mb-5">Lịch hẹn đã được ghi nhận. Lễ tân sẽ xác nhận sớm nhất.</p>
+                    <div class="inline-flex items-center gap-3 bg-teal-50 border border-teal-200 text-teal-800 font-bold px-6 py-3 rounded-2xl mb-6 text-sm">
+                        📅 [[ displayDate ]] &nbsp; · &nbsp; ⏰ [[ form.time ]]
+                    </div>
+                    <br/>
+                    <a href="/Patient/Dashboard"
+                       class="inline-block bg-brand-primary text-white px-8 py-3 rounded-2xl font-bold hover:bg-brand-hover shadow-md transition-colors mt-2">
+                        Xem hồ sơ của tôi →
+                    </a>
+                </div>
+
+                <!-- Nav buttons -->
+                <div v-if="!booked" class="px-8 pb-8 flex justify-between items-center pt-6 border-t border-slate-100">
+                    <button v-if="step > 1" @@click="step--"
+                            class="px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+                        ← Quay lại
+                    </button>
+                    <span v-else></span>
+                    <button v-if="step < 4" @@click="next" :disabled="!canNext"
+                            :class="canNext ? 'bg-brand-primary hover:bg-brand-hover shadow-md' : 'bg-slate-300 cursor-not-allowed'"
+                            class="px-7 py-2.5 text-white rounded-xl text-sm font-bold transition-all">
+                        Tiếp theo →
+                    </button>
+                    <button v-if="step === 4" @@click="submit" :disabled="submitting"
+                            :class="submitting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-brand-hover shadow-md'"
+                            class="px-7 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold transition-all">
+                        <span v-if="submitting">⏳ Đang xử lý...</span>
+                        <span v-else">✓ Xác nhận đặt lịch</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const { createApp, ref, computed } = Vue;
+createApp({
+    delimiters: ['[[',']]'],
+    setup() {
+        const step       = ref(1);
+        const booked     = ref(false);
+        const submitting = ref(false);
+        const bookErr    = ref('');
+        const steps      = ['Dịch vụ', 'Ngày khám', 'Khung giờ', 'Xác nhận'];
+
+        const form = ref({ serviceId: null, serviceName: '', date: '', time: '', note: '' });
+
+        const services = [
+            { id:1, name:'Khám & Soi da 3D',               icon:'🔬', desc:'Chẩn đoán tình trạng da chuyên sâu',    price:'300.000đ / lượt'  },
+            { id:2, name:'Lấy nhân mụn chuẩn Y khoa',      icon:'💉', desc:'Cho da viêm, mụn bọc, mụn mủ',          price:'400.000đ / lượt'  },
+            { id:3, name:'Peel da sinh học BHA/AHA',        icon:'✨', desc:'Tẩy tế bào chết, tái tạo da',           price:'800.000đ / lượt'  },
+            { id:4, name:'Điện di Ion phục hồi B5',         icon:'⚡', desc:'Phục hồi da nhạy cảm, corticoid',      price:'500.000đ / lượt'  },
+            { id:5, name:'Chiếu ánh sáng Omega Light',      icon:'💡', desc:'Diệt khuẩn, giảm viêm không xâm lấn',  price:'200.000đ / lượt'  },
+            { id:6, name:'Tư vấn lập phác đồ cá nhân',     icon:'📋', desc:'Bác sĩ thiết kế phác đồ riêng cho bạn', price:'Miễn phí'          },
+        ];
+
+        const morningSlots   = ['08:00','08:30','09:00','09:30','10:00','10:30'];
+        const afternoonSlots = ['13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'];
+
+        // ── Calendar logic ───────────────────────────────────
+        const today = new Date(); today.setHours(0,0,0,0);
+        const calYear  = ref(today.getFullYear());
+        const calMonth = ref(today.getMonth());
+        const monthNames = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6',
+                            'Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+
+        const calCells = computed(() => {
+            const first = new Date(calYear.value, calMonth.value, 1);
+            const last  = new Date(calYear.value, calMonth.value + 1, 0);
+            const cells = [];
+            // leading empties (0=Sun)
+            for (let i = 0; i < first.getDay(); i++) cells.push(null);
+            for (let d = 1; d <= last.getDate(); d++)
+                cells.push(new Date(calYear.value, calMonth.value, d));
+            return cells;
+        });
+
+        const prevMonth = () => {
+            if (calMonth.value === 0) { calMonth.value = 11; calYear.value--; }
+            else calMonth.value--;
+        };
+        const nextMonth = () => {
+            if (calMonth.value === 11) { calMonth.value = 0; calYear.value++; }
+            else calMonth.value++;
+        };
+        const isPast     = (d) => d < today;
+        const isToday    = (d) => d.getTime() === today.getTime();
+        const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const selectDate = (d) => { form.value.date = formatDate(d); };
+        const displayDate = computed(() => {
+            if (!form.value.date) return '';
+            const [y,m,day] = form.value.date.split('-');
+            return `${day}/${m}/${y}`;
+        });
+
+        // ── Validation ───────────────────────────────────────
+        const canNext = computed(() => {
+            if (step.value === 1) return !!form.value.serviceId;
+            if (step.value === 2) return !!form.value.date;
+            if (step.value === 3) return !!form.value.time;
+            return true;
+        });
+
+        const next = () => { if (canNext.value) step.value++; };
+
+        // ── Submit ───────────────────────────────────────────
+        const submit = async () => {
+            bookErr.value    = '';
+            submitting.value = true;
+            try {
+                const res  = await fetch('/Patient/Book', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({
+                        doctorId:  0,   // 0 = auto-assign on backend
+                        serviceId: form.value.serviceId,
+                        date:      form.value.date,
+                        time:      form.value.time,
+                        note:      form.value.note
+                    })
+                });
+                const data = await res.json();
+                if (data.success) booked.value = true;
+                else              bookErr.value = data.message || 'Đặt lịch thất bại.';
+            } catch { bookErr.value = 'Lỗi kết nối. Vui lòng thử lại.'; }
+            submitting.value = false;
+        };
+
+        return { step, steps, form, booked, submitting, bookErr, services,
+                 morningSlots, afternoonSlots, canNext, next, submit,
+                 calYear, calMonth, calCells, monthNames,
+                 prevMonth, nextMonth, isPast, isToday, formatDate, selectDate, displayDate };
+    }
+}).mount('#app');
+</script>
+}

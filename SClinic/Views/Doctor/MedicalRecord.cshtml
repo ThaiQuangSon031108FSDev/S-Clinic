@@ -1,0 +1,7 @@
+@{
+    ViewData["Title"] = "Medical Record";
+}
+<div id="app">
+    <medical-record-form :appointment-id="@ViewBag.AppointmentId"></medical-record-form>
+</div>
+@section Scripts { <script type="module" src="~/js/doctor.js"></script> }

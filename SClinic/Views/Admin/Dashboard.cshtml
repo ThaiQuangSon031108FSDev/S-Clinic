@@ -1,0 +1,248 @@
+@{
+    ViewData["Title"] = "Báo cáo";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+
+    var todayRevenue    = (decimal)(ViewBag.TodayRevenue    ?? 0m);
+    var waitingCount    = (int)    (ViewBag.WaitingCount    ?? 0);
+    var pendingInvoices = (int)    (ViewBag.PendingInvoices ?? 0);
+    var lowStockCount   = (int)    (ViewBag.LowStockCount   ?? 0);
+    var revenueStr      = todayRevenue.ToString("N0");
+}
+
+<!-- KPI Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-brand-primary">
+        <p class="text-sm text-slate-500 font-semibold mb-1">Doanh thu hôm nay</p>
+        <h3 class="text-2xl font-extrabold text-slate-900">@revenueStr₫</h3>
+        <p class="text-xs text-emerald-600 mt-2 font-medium">↑ Hôm nay</p>
+    </div>
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-blue-500">
+        <p class="text-sm text-slate-500 font-semibold mb-1">Khách chờ khám</p>
+        <h3 class="text-2xl font-extrabold text-slate-900">@waitingCount.ToString("D2") <span class="text-sm font-normal text-slate-400">người</span></h3>
+        <p class="text-xs text-slate-500 mt-2">Đang ở sảnh chờ</p>
+    </div>
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-amber-500">
+        <p class="text-sm text-slate-500 font-semibold mb-1">Hóa đơn chờ thu</p>
+        <h3 class="text-2xl font-extrabold text-slate-900">@pendingInvoices <span class="text-sm font-normal text-slate-400">HĐ</span></h3>
+        <p class="text-xs text-amber-600 mt-2 font-medium">Cần xử lý</p>
+    </div>
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-red-400">
+        <p class="text-sm text-slate-500 font-semibold mb-1">Thuốc sắp hết</p>
+        <h3 class="text-2xl font-extrabold text-slate-900">@lowStockCount.ToString("D2") <span class="text-sm font-normal text-slate-400">loại</span></h3>
+        <p class="text-xs text-red-500 mt-2 font-medium">Dưới 10 sản phẩm</p>
+    </div>
+</div>
+
+<!-- Chart & Rankings Row 1 -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <!-- Revenue Chart -->
+    <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col relative">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-bold text-slate-800">Doanh thu 7 ngày gần nhất</h3>
+            <select class="border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none">
+                <option>Tuần này</option>
+                <option>Tháng này</option>
+            </select>
+        </div>
+        <div class="flex-1 w-full min-h-[300px]">
+            <canvas id="revenueChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Top Services -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h3 class="text-lg font-bold text-slate-800 mb-6">🥇 Dịch vụ & Gói Liệu Trình Bán Chạy</h3>
+        <ul class="space-y-4">
+            <li class="flex justify-between items-center pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold text-xs">1</div>
+                    <div>
+                        <p class="text-sm font-bold text-slate-800">Trị mụn y khoa</p>
+                        <p class="text-xs text-slate-500">Gói 10 buổi</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm font-extrabold text-brand-primary">45</p>
+                    <p class="text-xs text-slate-400">lượt bán</p>
+                </div>
+            </li>
+            <li class="flex justify-between items-center pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-xs">2</div>
+                    <div>
+                        <p class="text-sm font-bold text-slate-800">Khám soi da 3D</p>
+                        <p class="text-xs text-slate-500">Dịch vụ lẻ</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm font-bold text-slate-800">32</p>
+                    <p class="text-xs text-slate-400">lượt bán</p>
+                </div>
+            </li>
+            <li class="flex justify-between items-center pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xs">3</div>
+                    <div>
+                        <p class="text-sm font-bold text-slate-800">Nâng cơ trẻ hóa</p>
+                        <p class="text-xs text-slate-500">Gói Premium</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm font-bold text-slate-800">18</p>
+                    <p class="text-xs text-slate-400">lượt bán</p>
+                </div>
+            </li>
+            <li class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-red-50 text-red-600 flex items-center justify-center font-bold text-xs">4</div>
+                    <div>
+                        <p class="text-sm font-bold text-slate-800">Peel da hóa học</p>
+                        <p class="text-xs text-slate-500">Dịch vụ lẻ</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm font-bold text-slate-800">15</p>
+                    <p class="text-xs text-slate-400">lượt bán</p>
+                </div>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<!-- Detailed Stats Row 2 -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12">
+    <!-- Doctor Performance -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
+        <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+            <h3 class="font-bold text-slate-800">👨‍⚕️ Hiệu Suất Bác Sĩ Tháng Này</h3>
+            <span class="text-xs text-brand-primary font-bold cursor-pointer hover:underline">Xem chi tiết</span>
+        </div>
+        <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50/50 text-slate-500 text-xs">
+                <tr>
+                    <th class="p-4 font-semibold">Tên Bác Sĩ</th>
+                    <th class="p-4 font-semibold text-center">Số Ca Khám</th>
+                    <th class="p-4 font-semibold text-right">Doanh Thu Tạo Ra</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="p-4 font-bold text-slate-800 flex items-center gap-3">
+                        <img src="https://ui-avatars.com/api/?name=Bs.+Le+Thi+B&background=0f766e&color=fff&size=32" class="rounded-full w-8 h-8" />
+                        Bs. Lê Thị B <span class="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded ml-2">Top 1</span>
+                    </td>
+                    <td class="p-4 text-center font-medium text-slate-600">124</td>
+                    <td class="p-4 text-right font-bold text-brand-primary">152,000,000đ</td>
+                </tr>
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="p-4 font-bold text-slate-800 flex items-center gap-3">
+                        <img src="https://ui-avatars.com/api/?name=Bs.+Nguyen+Van+C&background=334155&color=fff&size=32" class="rounded-full w-8 h-8" />
+                        Bs. Nguyễn Văn C
+                    </td>
+                    <td class="p-4 text-center font-medium text-slate-600">98</td>
+                    <td class="p-4 text-right font-medium text-slate-700">110,500,000đ</td>
+                </tr>
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="p-4 font-bold text-slate-800 flex items-center gap-3">
+                        <img src="https://ui-avatars.com/api/?name=Bs.+Tran+Thi+D&background=334155&color=fff&size=32" class="rounded-full w-8 h-8" />
+                        Bs. Trần Thị D
+                    </td>
+                    <td class="p-4 text-center font-medium text-slate-600">82</td>
+                    <td class="p-4 text-right font-medium text-slate-700">95,800,000đ</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Staff KPIs -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
+        <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+            <h3 class="font-bold text-slate-800">👥 KPI Thao Tác - Lễ Tân & Thu Ngân</h3>
+            <span class="text-xs text-brand-primary font-bold cursor-pointer hover:underline">Xem tất cả lệnh</span>
+        </div>
+        <div class="p-6 grid grid-cols-2 gap-6">
+            <div class="space-y-4">
+                <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100 border-l-4 border-l-blue-500">
+                    <p class="text-xs text-blue-800 font-bold mb-1 uppercase tracking-wider">Hồ Sơ Đã Tạo</p>
+                    <h4 class="text-2xl font-extrabold text-slate-900">432 <span class="text-sm font-normal text-slate-500 mb-1 inline-block">Bệnh nhân</span></h4>
+                    <p class="text-xs text-slate-500 mt-2">Bởi Lễ tân trong tháng này.</p>
+                </div>
+                <div class="bg-amber-50/50 p-4 rounded-xl border border-amber-100 border-l-4 border-l-amber-500">
+                    <p class="text-xs text-amber-800 font-bold mb-1 uppercase tracking-wider">Lịch Hẹn Set-up</p>
+                    <h4 class="text-2xl font-extrabold text-slate-900">510 <span class="text-sm font-normal text-slate-500 mb-1 inline-block">Lượt</span></h4>
+                    <p class="text-xs text-slate-500 mt-2">Bởi Lễ tân trong tháng này.</p>
+                </div>
+            </div>
+            <div class="space-y-4">
+                <div class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 border-l-4 border-l-emerald-500 flex h-full flex-col justify-center relative">
+                    <div class="absolute top-4 right-4 bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-[10px] font-bold">Thu Ngân</div>
+                    <p class="text-xs text-emerald-800 font-bold mb-1 uppercase tracking-wider">Hóa Đơn Xử Lý</p>
+                    <h4 class="text-3xl font-extrabold text-slate-900 text-emerald-700">388 <span class="text-base font-normal text-slate-500">HĐ</span></h4>
+                    <div class="w-full bg-emerald-200 rounded-full h-1.5 mt-4 mb-2">
+                        <div class="bg-emerald-600 h-1.5 rounded-full w-[92%]"></div>
+                    </div>
+                    <p class="text-xs text-slate-500 font-medium">Hoàn thành 92% tỉ lệ nộp quỹ</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const ctx = document.getElementById('revenueChart');
+            if (ctx) {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['T5', 'T6', 'T7', 'CN', 'T2', 'T3', 'Hôm nay'],
+                        datasets: [{
+                            label: 'Doanh Thu (triệu VNĐ)',
+                            data: [3.2, 6.5, 9.1, 14.2, 2.5, 11.8, @(todayRevenue / 1000000)],
+                            backgroundColor: [
+                                '#99f6e4', '#99f6e4', '#99f6e4', '#0d9488', '#99f6e4', '#99f6e4', '#0f766e'
+                            ],
+                            borderRadius: 6,
+                            borderSkipped: false,
+                            barPercentage: 0.6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: '#1e293b',
+                                padding: 12,
+                                titleFont: { size: 14, family: "'Inter', sans-serif" },
+                                bodyFont: { size: 14, weight: 'bold', family: "'Inter', sans-serif" },
+                                displayColors: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.raw.toLocaleString() + ' Triệu VNĐ';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                border: { display: false },
+                                grid: { color: '#f1f5f9', drawTicks: false },
+                                ticks: { color: '#64748b', font: { family: "'Inter', sans-serif" }, padding: 10 }
+                            },
+                            x: {
+                                border: { display: false },
+                                grid: { display: false },
+                                ticks: { color: '#64748b', font: { family: "'Inter', sans-serif", weight: 'bold' } }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+}

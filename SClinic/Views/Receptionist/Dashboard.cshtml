@@ -1,0 +1,273 @@
+@{
+    ViewData["Title"] = "Hàng đợi";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+<div id="app">
+    <!-- Subheader tabs -->
+    <div class="flex gap-3 mb-6">
+        <button @@click="view='kanban'" :class="view==='kanban'?'bg-brand-primary text-white shadow-md':'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'"
+                class="px-5 py-2.5 rounded-xl font-semibold text-sm transition-all">
+            📋 Kanban Hàng đợi
+        </button>
+        <button @@click="view='list'" :class="view==='list'?'bg-brand-primary text-white shadow-md':'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'"
+                class="px-5 py-2.5 rounded-xl font-semibold text-sm transition-all">
+            📅 Danh sách
+        </button>
+        <a asp-controller="Receptionist" asp-action="RegisterPatient"
+           class="ml-auto bg-slate-900 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-slate-800 transition-colors">
+            + Đăng ký BN mới
+        </a>
+    </div>
+
+    <!-- KANBAN -->
+    <div v-if="view==='kanban'" class="flex gap-6 overflow-x-auto pb-4" style="height:calc(100vh - 240px)">
+
+        <!-- Col 1 -->
+        <div class="flex-1 min-w-72 bg-slate-100/60 rounded-2xl border border-slate-200 flex flex-col">
+            <div class="p-4 border-b border-slate-200/60 flex justify-between items-center bg-slate-100 rounded-t-2xl">
+                <h3 class="font-bold text-slate-700">⏳ Đang chờ khám</h3>
+                <span class="bg-slate-200 text-slate-600 text-xs font-bold px-2.5 py-1 rounded-md">[[ pendingList.length ]] Khách</span>
+            </div>
+            <div class="p-4 flex-1 overflow-y-auto space-y-3">
+                <div v-for="p in pendingList" :key="p.id"
+                     class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-amber-400 hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-xs font-bold text-slate-400">#STT-[[ String(p.id).padStart(2,'0') ]]</span>
+                        <span class="text-xs font-medium text-slate-500">[[ p.time ]]</span>
+                    </div>
+                    <h4 class="font-bold text-slate-900">[[ p.name ]]</h4>
+                    <p class="text-sm text-slate-600 mt-1">[[ p.service ]]</p>
+                    <p class="text-xs text-slate-500 mt-2">BS: <b>[[ p.doctor ]]</b></p>
+                    <button @@click="callIn(p)"
+                            class="mt-3 w-full bg-teal-50 text-teal-700 hover:bg-teal-600 hover:text-white py-2 rounded-lg text-sm font-semibold transition-colors">
+                        📣 Gọi vào phòng khám
+                    </button>
+                </div>
+                <div v-if="!pendingList.length" class="text-center text-slate-400 text-sm py-8">Sảnh chờ trống 🎉</div>
+            </div>
+        </div>
+
+        <!-- Col 2 -->
+        <div class="flex-1 min-w-72 bg-teal-50/40 rounded-2xl border border-teal-100 flex flex-col">
+            <div class="p-4 border-b border-teal-100 flex justify-between items-center bg-teal-50 rounded-t-2xl">
+                <h3 class="font-bold text-teal-700">🩺 Đang Khám / Dịch vụ</h3>
+                <span class="bg-teal-200 text-teal-800 text-xs font-bold px-2.5 py-1 rounded-md">[[ activeList.length ]] Khách</span>
+            </div>
+            <div class="p-4 flex-1 overflow-y-auto space-y-3">
+                <div v-for="p in activeList" :key="p.id"
+                     class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-teal-500">
+                    <span class="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded">[[ p.room ]]</span>
+                    <h4 class="font-bold text-slate-900 mt-2">[[ p.name ]]</h4>
+                    <p class="text-sm text-amber-600 font-medium mt-1">[[ p.service ]]</p>
+                    <p class="text-xs text-slate-400 mt-3 animate-pulse">BS. đang chẩn đoán...</p>
+                    <button @@click="moveToCashier(p)"
+                            class="mt-3 w-full bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white py-2 rounded-lg text-xs font-semibold transition-colors">
+                        💵 Chuyển Chờ Thu Ngân
+                    </button>
+                </div>
+                <div v-if="!activeList.length" class="text-center text-slate-400 text-sm py-8">Chưa có bệnh nhân</div>
+            </div>
+        </div>
+
+        <!-- Col 3 -->
+        <div class="flex-1 min-w-72 bg-blue-50/30 rounded-2xl border border-blue-100 flex flex-col">
+            <div class="p-4 border-b border-blue-100 flex justify-between items-center bg-blue-50 rounded-t-2xl">
+                <h3 class="font-bold text-blue-700">💵 Chờ Thu Ngân</h3>
+                <span class="bg-blue-200 text-blue-800 text-xs font-bold px-2.5 py-1 rounded-md">[[ cashierList.length ]] Khách</span>
+            </div>
+            <div class="p-4 flex-1 overflow-y-auto space-y-3">
+                <div v-for="inv in cashierList" :key="inv.invoiceId"
+                     class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-blue-500">
+                    <h4 class="font-bold text-slate-900">[[ inv.patientName ]]</h4>
+                    <div class="mt-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <p class="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Chi tiết hóa đơn</p>
+                        <ul class="text-xs space-y-2 mb-3">
+                            <li v-for="(item, i) in inv.items" :key="i" class="flex justify-between items-start border-b border-slate-200/50 pb-2 border-dashed">
+                                <span class="flex-1 pr-2">[[ item.quantity ]]x [[ item.name ]]</span>
+                                <span class="font-bold text-slate-700">[[ item.subTotal.toLocaleString() ]]đ</span>
+                            </li>
+                            <li v-if="!inv.items || !inv.items.length" class="text-slate-400 italic">Hóa đơn chưa có dịch vụ.</li>
+                        </ul>
+                        <div class="flex justify-between items-center text-slate-800 mt-2">
+                            <span class="text-sm font-semibold">Tổng mức thu:</span>
+                            <span class="text-lg font-extrabold text-brand-primary">[[ inv.totalAmount.toLocaleString() ]]đ</span>
+                        </div>
+                    </div>
+                    <button @@click="payInvoice(inv)" :disabled="paying"
+                            class="w-full mt-3 bg-emerald-600 text-white hover:bg-emerald-700 py-2 rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50">
+                        <span v-if="paying">⏳ Đang xử lý...</span>
+                        <span v-else>✓ Đã thu tiền</span>
+                    </button>
+                </div>
+                <div v-if="!cashierList.length" class="text-center text-slate-400 text-sm py-8">Không có hóa đơn chờ</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIST VIEW -->
+    <div v-if="view==='list'">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-5 border-b border-slate-100 bg-slate-50/50">
+                <input type="text" v-model="search" placeholder="Tìm tên, SĐT bệnh nhân..."
+                       class="text-sm border border-slate-200 rounded-lg px-4 py-2 w-72 focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+            </div>
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                        <th class="px-6 py-4 font-semibold">Mã</th>
+                        <th class="px-6 py-4 font-semibold">Bệnh nhân</th>
+                        <th class="px-6 py-4 font-semibold">Giờ</th>
+                        <th class="px-6 py-4 font-semibold">Dịch vụ</th>
+                        <th class="px-6 py-4 font-semibold">Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <tr v-for="p in filteredAll" :key="p.id" class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4 font-mono text-sm text-slate-500">#[[ String(p.id).padStart(3,'0') ]]</td>
+                        <td class="px-6 py-4">
+                            <p class="text-sm font-bold text-slate-900">[[ p.name ]]</p>
+                            <p class="text-xs text-slate-400">[[ p.phone ]]</p>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-slate-700">[[ p.time ]]</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">[[ p.service ]]</td>
+                        <td class="px-6 py-4">
+                            <span :class="{
+                                'bg-amber-100 text-amber-700': p.status==='pending',
+                                'bg-teal-100 text-teal-700':  p.status==='active',
+                                'bg-blue-100 text-blue-700':  p.status==='cashier',
+                                'bg-green-100 text-green-700':p.status==='done'
+                            }" class="text-xs font-bold px-3 py-1 rounded-full">
+                                [[ {pending:'Chờ khám',active:'Đang khám',cashier:'Chờ thu',done:'Hoàn tất'}[p.status] ]]
+                            </span>
+                        </td>
+                    </tr>
+                    <tr v-if="!filteredAll.length">
+                        <td colspan="5" class="px-6 py-12 text-center text-slate-400">Không có lịch hẹn nào hôm nay.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const { createApp, ref, computed, onMounted } = Vue;
+createApp({
+    delimiters: ['[[', ']]'],
+    setup() {
+        const view   = ref('kanban');
+        const search = ref('');
+        const loading = ref(true);
+
+        // Real data from DB
+        const allPatients = ref([]);
+        const pendingInvoices = ref([]);
+        const paying = ref(false);
+
+        // Fetch today's appointments from API
+        const loadData = async () => {
+            try {
+                // Fetch Appointments
+                const resA  = await fetch('/api/appointmentsapi/today');
+                const dataA = await resA.json();
+                allPatients.value = dataA.map(a => ({
+                    id:      a.appointmentId,
+                    name:    a.patientName,
+                    phone:   a.patientPhone,
+                    time:    a.time,
+                    date:    a.date,
+                    service: a.status,   // no service field in appointment yet, show status
+                    doctor:  a.doctorName,
+                    room:    '',
+                    amount:  '',
+                    status:  a.status === 'Pending'   ? 'pending'  :
+                             a.status === 'Confirmed' ? 'active'   :
+                             a.status === 'Completed' ? 'cashier'  : 'done' // legacy UI logic mapping
+                }));
+
+                // Fetch Invoices exclusively for Cashier List
+                const resI = await fetch('/api/invoicesapi?status=Pending');
+                const dataI = await resI.json();
+                pendingInvoices.value = dataI;
+                
+            } catch (e) {
+                console.error('Failed to load data', e);
+            }
+            loading.value = false;
+        };
+
+        onMounted(loadData);
+
+        const patchStatus = async (id, newStatus) => {
+            await fetch(`/api/appointmentsapi/${id}/status`, {
+                method:  'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            });
+        };
+
+        const pendingList = computed(() => allPatients.value.filter(p => p.status === 'pending'));
+        const activeList  = computed(() => allPatients.value.filter(p => p.status === 'active'));
+        const cashierList = computed(() => pendingInvoices.value);
+        const filteredAll = computed(() => {
+            const q = search.value.toLowerCase();
+            return !q ? allPatients.value : allPatients.value.filter(p => p.name.toLowerCase().includes(q) || p.phone.includes(q));
+        });
+
+        const callIn = async (p) => {
+            p.room   = 'Phòng ' + Math.ceil(Math.random() * 3);
+            p.status = 'active';
+            await patchStatus(p.id, 'Confirmed');
+        };
+        const moveToCashier = async (p) => {
+            // 1. Patch appointment status to Completed
+            await patchStatus(p.id, 'Completed');
+            // 2. Create a pending invoice & add to cashierList immediately
+            try {
+                const res = await fetch('/api/invoicesapi/create-from-appointment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ appointmentId: p.id })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    // Add to cashier list immediately without full reload
+                    pendingInvoices.value.push({
+                        invoiceId:   data.invoiceId,
+                        patientName: p.name,
+                        totalAmount: 0,
+                        items:       []
+                    });
+                }
+            } catch(e) { console.error(e); }
+            // 3. Remove from activeList
+            p.status = 'done';
+        };
+
+        const payInvoice = async (inv) => {
+            paying.value = true;
+            try {
+                const res = await fetch(`/api/invoicesapi/${inv.invoiceId}/collect`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ Method: 'Tiền mặt' })
+                });
+                if (res.ok) {
+                    await loadData();
+                } else {
+                    alert('Lỗi khi thu tiền.');
+                }
+            } catch (err) {
+                alert('Mất kết nối server.');
+            }
+            paying.value = false;
+        };
+
+        return { view, search, loading, allPatients, pendingList, activeList, cashierList, filteredAll, paying, callIn, moveToCashier, payInvoice };
+    }
+}).mount('#app');
+</script>
+}
+

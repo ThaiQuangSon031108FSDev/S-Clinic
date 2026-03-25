@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html class="scroll-smooth" lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>S-Clinic | Giải pháp Da liễu chuẩn Y khoa</title>
+
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              heading: ["Plus Jakarta Sans", "sans-serif"],
+            },
+            colors: {
+              brand: {
+                primary: "#0d9488",
+                hover: "#0f766e",
+                accent: "#D4A373",
+              },
+              slate: { 50: "#f8fafc", 600: "#475569", 900: "#0f172a" },
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        color: #475569;
+        overflow-x: hidden;
+      }
+      h1,
+      h2,
+      h3,
+      h4 {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        letter-spacing: -0.02em;
+      }
+      .glass-nav {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      #hero-canvas {
+        width: 100%;
+        height: 500px;
+        outline: none;
+        border-radius: 1.5rem;
+      }
+      /* ĐÃ XÓA CLASS .gsap-fade-up Ở ĐÂY ĐỂ TRÁNH LỖI TÀNG HÌNH */
+    </style>
+  </head>
+  <body class="bg-slate-50 antialiased">
+    <header class="fixed top-0 left-0 right-0 z-50 glass-nav">
+      <nav
+        class="container mx-auto px-4 md:px-6 h-20 flex items-center justify-between"
+      >
+        <a class="flex items-center gap-2" href="#">
+          <span
+            class="text-2xl font-extrabold text-brand-primary tracking-tight"
+            >S-CLINIC</span
+          >
+        </a>
+        <div class="hidden md:flex items-center gap-8">
+          <a
+            class="text-slate-900 font-medium hover:text-brand-primary transition-colors"
+            href="#quy-trinh"
+            >Quy trình</a
+          >
+          <a
+            class="text-slate-900 font-medium hover:text-brand-primary transition-colors"
+            href="#gia-goi"
+            >Bảng giá</a
+          >
+        </div>
+        <div class="flex items-center gap-4">
+          <a
+            href="patient-dashboard.html"
+            class="hidden sm:block text-slate-900 font-semibold hover:text-brand-primary transition-colors px-4"
+            >Đăng nhập</a
+          >
+          <button
+            class="bg-brand-primary text-white px-6 py-2.5 rounded-full font-semibold hover:bg-brand-hover transition-all shadow-md"
+          >
+            Đặt lịch khám
+          </button>
+        </div>
+      </nav>
+    </header>
+
+    <main class="pt-20">
+      <section class="container mx-auto px-4 md:px-6 py-12 md:py-24">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div class="space-y-8" id="hero-text">
+            <div
+              class="inline-flex items-center px-4 py-2 rounded-full bg-teal-50 text-brand-primary border border-teal-100 font-semibold text-sm"
+            >
+              ✨ Giải pháp Da liễu chuẩn Y khoa
+            </div>
+            <h1
+              class="text-5xl md:text-6xl font-extrabold text-slate-900 leading-[1.1]"
+            >
+              Phục hồi làn da. <br />
+              <span class="text-brand-primary">Không chờ đợi.</span>
+            </h1>
+            <p
+              class="text-lg md:text-xl text-slate-600 max-w-lg leading-relaxed"
+            >
+              Hệ thống đặt lịch tự động giúp bạn kết nối ngay với bác sĩ chuyên
+              khoa. Lấy lại vẻ đẹp tự nhiên bằng công nghệ tiên tiến nhất.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4">
+              <button
+                class="flex items-center justify-center gap-2 bg-brand-primary text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-brand-hover transition-all shadow-lg group"
+              >
+                Xí chỗ ngay hôm nay
+              </button>
+            </div>
+          </div>
+
+          <div class="relative">
+            <div
+              class="absolute -top-6 -left-6 w-32 h-32 bg-teal-200/50 rounded-full blur-3xl"
+            ></div>
+            <div
+              class="absolute -bottom-6 -right-6 w-32 h-32 bg-brand-accent/30 rounded-full blur-3xl"
+            ></div>
+            <div
+              id="canvas-container"
+              class="rounded-3xl shadow-2xl relative z-10 border-4 border-white bg-slate-900 overflow-hidden"
+            >
+              <canvas id="hero-canvas"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="bg-white py-24" id="quy-trinh">
+        <div class="container mx-auto px-4 md:px-6">
+          <div class="text-center mb-16 step-title">
+            <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4">
+              3 Bước đơn giản để gặp Bác sĩ
+            </h2>
+            <p class="text-slate-600">
+              Quy trình tối giản, tiết kiệm thời gian tối đa cho khách hàng.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div
+              class="step-card bg-slate-50 p-8 rounded-2xl border border-slate-100 text-center"
+            >
+              <div
+                class="w-16 h-16 bg-teal-100 text-brand-primary rounded-2xl flex items-center justify-center mx-auto mb-6"
+              >
+                <span class="text-2xl font-bold">01</span>
+              </div>
+              <h3 class="text-xl font-bold text-slate-900 mb-3">
+                Chọn dịch vụ
+              </h3>
+              <p class="text-slate-600">
+                Khám tổng quát, điều trị mụn, hoặc các liệu trình trẻ hoá cao
+                cấp.
+              </p>
+            </div>
+            <div
+              class="step-card bg-slate-50 p-8 rounded-2xl border border-slate-100 text-center"
+            >
+              <div
+                class="w-16 h-16 bg-teal-100 text-brand-primary rounded-2xl flex items-center justify-center mx-auto mb-6"
+              >
+                <span class="text-2xl font-bold">02</span>
+              </div>
+              <h3 class="text-xl font-bold text-slate-900 mb-3">
+                Chọn thời gian
+              </h3>
+              <p class="text-slate-600">
+                Lựa chọn khung giờ phù hợp với lịch trình cá nhân của bạn.
+              </p>
+            </div>
+            <div
+              class="step-card bg-slate-50 p-8 rounded-2xl border border-slate-100 text-center"
+            >
+              <div
+                class="w-16 h-16 bg-teal-100 text-brand-primary rounded-2xl flex items-center justify-center mx-auto mb-6"
+              >
+                <span class="text-2xl font-bold">03</span>
+              </div>
+              <h3 class="text-xl font-bold text-slate-900 mb-3">Xác nhận</h3>
+              <p class="text-slate-600">
+                Nhận tin nhắn xác nhận lịch hẹn tức thì qua điện thoại.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="bg-slate-50 py-24" id="gia-goi">
+        <div class="container mx-auto px-4 md:px-6">
+          <div class="text-center mb-16 package-title">
+            <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4">
+              Phác đồ điều trị chuyên sâu
+            </h2>
+            <p class="text-slate-600">
+              Thiết kế cá nhân hóa cho từng tình trạng da cụ thể.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <div
+              class="package-card bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:-translate-y-2 hover:shadow-xl transition-all duration-300"
+            >
+              <h3 class="text-xl font-bold text-slate-900">Khám & Soi Da</h3>
+              <p class="text-sm text-slate-500 mt-2 mb-6">
+                Dành cho khách hàng mới
+              </p>
+              <div class="text-4xl font-extrabold text-slate-900 mb-6">
+                499.000đ
+                <span class="text-base font-normal text-slate-500">/ lượt</span>
+              </div>
+              <ul class="space-y-4 mb-8 text-slate-600">
+                <li class="flex items-center gap-3">✔️ Soi da 3D đa tầng</li>
+                <li class="flex items-center gap-3">✔️ Bác sĩ tư vấn 1:1</li>
+              </ul>
+              <button
+                class="w-full py-3 rounded-xl border-2 border-slate-200 font-semibold text-slate-700 hover:border-brand-primary hover:text-brand-primary transition-colors"
+              >
+                Đặt lịch ngay
+              </button>
+            </div>
+
+            <div
+              class="package-card bg-white p-8 rounded-3xl border-2 border-brand-primary shadow-lg hover:-translate-y-2 hover:shadow-teal-900/10 transition-all duration-300 relative"
+            >
+              <div
+                class="absolute -top-4 left-1/2 -translate-x-1/2 bg-brand-primary text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider"
+              >
+                Best Seller
+              </div>
+              <h3 class="text-xl font-bold text-slate-900">
+                Liệu trình Trị mụn Y khoa
+              </h3>
+              <p class="text-sm text-slate-500 mt-2 mb-6">
+                Phục hồi nền da thương tổn
+              </p>
+              <div class="text-4xl font-extrabold text-slate-900 mb-6">
+                5.500.000đ
+                <span class="text-base font-normal text-slate-500"
+                  >/ 5 buổi</span
+                >
+              </div>
+              <ul class="space-y-4 mb-8 text-slate-600 font-medium">
+                <li class="flex items-center gap-3">
+                  ✔️ Lấy nhân mụn chuẩn y khoa
+                </li>
+                <li class="flex items-center gap-3">
+                  ✔️ Chiếu ánh sáng sinh học
+                </li>
+                <li class="flex items-center gap-3">
+                  ✔️ Điện di Serum phục hồi
+                </li>
+              </ul>
+              <button
+                class="w-full py-3 rounded-xl bg-brand-primary text-white font-bold hover:bg-brand-hover shadow-md active:scale-95 transition-all"
+              >
+                Mua gói & Đặt lịch
+              </button>
+            </div>
+
+            <div
+              class="package-card bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:-translate-y-2 hover:shadow-xl transition-all duration-300 relative"
+            >
+              <div
+                class="absolute top-8 right-8 bg-brand-accent/20 text-brand-accent px-3 py-1 rounded-md text-xs font-bold uppercase"
+              >
+                Premium
+              </div>
+              <h3 class="text-xl font-bold text-slate-900">
+                Nâng cơ Ultra Therapy
+              </h3>
+              <p class="text-sm text-slate-500 mt-2 mb-6">
+                Trẻ hoá công nghệ cao
+              </p>
+              <div class="text-4xl font-extrabold text-slate-900 mb-6">
+                12.900.000đ
+                <span class="text-base font-normal text-slate-500">/ buổi</span>
+              </div>
+              <ul class="space-y-4 mb-8 text-slate-600">
+                <li class="flex items-center gap-3">
+                  ✔️ Xoá nhăn không xâm lấn
+                </li>
+                <li class="flex items-center gap-3">
+                  ✔️ Kích thích tăng sinh Collagen
+                </li>
+              </ul>
+              <button
+                class="w-full py-3 rounded-xl border-2 border-slate-200 font-semibold text-slate-700 hover:border-brand-primary hover:text-brand-primary transition-colors"
+              >
+                Liên hệ tư vấn
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <footer
+        class="bg-slate-900 text-slate-300 py-16 mt-12 border-t-4 border-brand-primary"
+      >
+        <div class="container mx-auto px-4 md:px-6">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-12">
+            <div class="space-y-4 col-span-1 md:col-span-2">
+              <span
+                class="text-3xl font-extrabold text-white tracking-tight font-[Plus Jakarta Sans]"
+                >S-CLINIC</span
+              >
+              <p class="text-slate-400 max-w-sm mt-4 leading-relaxed">
+                Hệ thống phòng khám chuyên khoa da liễu hàng đầu, mang lại vẻ
+                đẹp bền vững bằng sự tận tâm và công nghệ tân tiến.
+              </p>
+            </div>
+
+            <div class="space-y-4">
+              <h4 class="text-lg font-bold text-white mb-4">Liên hệ</h4>
+              <ul class="space-y-3">
+                <li class="flex items-start gap-3">
+                  <span>📍</span>
+                  <span class="text-sm">123 Đường Láng, Đống Đa, Hà Nội</span>
+                </li>
+                <li class="flex items-center gap-3">
+                  <span>📞</span>
+                  <span class="text-sm">Hotline: 1900 6868</span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="space-y-4">
+              <h4 class="text-lg font-bold text-white mb-4">Giờ làm việc</h4>
+              <ul class="space-y-3 text-sm">
+                <li class="flex justify-between border-b border-slate-700 pb-2">
+                  <span>Thứ 2 - Thứ 6:</span>
+                  <span class="text-white font-medium">08:30 - 20:00</span>
+                </li>
+                <li class="flex justify-between pt-1">
+                  <span>Thứ 7 - CN:</span>
+                  <span class="text-white font-medium">09:00 - 18:00</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div
+            class="border-t border-slate-800 mt-12 pt-8 text-center text-sm text-slate-500"
+          >
+            © 2026 S-Clinic Dermatology. All rights reserved.
+          </div>
+        </div>
+      </footer>
+    </main>
+<script>// ==========================================
+      // 1. THREE.JS: MÔ HÌNH CẤU TRÚC 3 LỚP DA (SKIN LAYERS)
+      // ==========================================
+      const canvas = document.querySelector("#hero-canvas");
+      const container = document.querySelector("#canvas-container");
+
+      const scene = new THREE.Scene();
+      // Chỉnh góc cam nhìn nghiêng từ trên xuống để thấy rõ 3 lớp
+      const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+      camera.position.set(0, 3, 7); 
+      camera.lookAt(0, 0, 0);
+
+      const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+
+      // --- TẠO NHÓM MÔ HÌNH DA ---
+      const skinModel = new THREE.Group();
+
+      // 1. LỚP BIỂU BÌ (Epidermis) - Lớp ngoài cùng bảo vệ da
+      const epiGeo = new THREE.BoxGeometry(4, 0.2, 4);
+      const epiMat = new THREE.MeshPhysicalMaterial({ 
+        color: 0xfcd5ce, // Màu da người
+        transparent: true, 
+        opacity: 0.85,
+        roughness: 0.4
+      });
+      const epidermis = new THREE.Mesh(epiGeo, epiMat);
+      epidermis.position.y = 1.0;
+      skinModel.add(epidermis);
+
+      // 2. LỚP THÂN BÌ (Dermis) - Nơi chứa Collagen & Mạch máu
+      const dermisGeo = new THREE.BoxGeometry(4, 1.2, 4);
+      const dermisMat = new THREE.MeshPhysicalMaterial({ 
+        color: 0xffb5a7, // Màu hồng đỏ của thịt
+        transparent: true,
+        opacity: 0.7,
+        roughness: 0.6
+      });
+      const dermis = new THREE.Mesh(dermisGeo, dermisMat);
+      dermis.position.y = 0.3;
+      skinModel.add(dermis);
+
+      // 3. LỚP HẠ BÌ (Hypodermis) - Lớp mỡ dưới da
+      const hypoGeo = new THREE.BoxGeometry(4, 0.5, 4);
+      const hypoMat = new THREE.MeshStandardMaterial({ 
+        color: 0xfec89a, // Màu vàng của mô mỡ
+        roughness: 0.8 
+      });
+      const hypodermis = new THREE.Mesh(hypoGeo, hypoMat);
+      hypodermis.position.y = -0.55;
+      skinModel.add(hypodermis);
+
+      // --- CHI TIẾT BÊN TRONG (Collagen & Nang lông) ---
+      const collagenGroup = new THREE.Group();
+      
+      // Tạo các sợi Collagen đan chéo (Màu trắng/xanh nhạt)
+      for (let i = 0; i < 15; i++) {
+        const colGeo = new THREE.CylinderGeometry(0.03, 0.03, 1.5);
+        const colMat = new THREE.MeshStandardMaterial({ color: 0x99e2b4, emissive: 0x0d9488, emissiveIntensity: 0.5 });
+        const collagen = new THREE.Mesh(colGeo, colMat);
+        
+        // Cắm lộn xộn trong lớp Thân bì
+        collagen.position.set((Math.random() - 0.5) * 3.5, 0.3, (Math.random() - 0.5) * 3.5);
+        collagen.rotation.set(Math.random() * Math.PI, 0, Math.random() * Math.PI);
+        collagenGroup.add(collagen);
+      }
+
+      // Tạo vài Nang lông đâm từ dưới lên Biểu bì
+      for (let i = 0; i < 5; i++) {
+        const hairGeo = new THREE.CylinderGeometry(0.05, 0.02, 2.5);
+        const hairMat = new THREE.MeshStandardMaterial({ color: 0x4a4e69 });
+        const hair = new THREE.Mesh(hairGeo, hairMat);
+        hair.position.set((Math.random() - 0.5) * 3, 0.5, (Math.random() - 0.5) * 3);
+        hair.rotation.z = (Math.random() - 0.5) * 0.2; // Nghiêng nhẹ
+        collagenGroup.add(hair);
+      }
+
+      skinModel.add(collagenGroup);
+      scene.add(skinModel);
+
+      // --- ÁNH SÁNG Y KHOA ---
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+      
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+      dirLight.position.set(5, 10, 5);
+      scene.add(dirLight);
+
+      const blueLight = new THREE.PointLight(0x0d9488, 2, 10);
+      blueLight.position.set(-5, 0, 5);
+      scene.add(blueLight);
+
+      // --- ANIMATION VÀ HIỆU ỨNG ---
+      let time = 0;
+      function animate() {
+        requestAnimationFrame(animate);
+        time += 0.01;
+
+        // Khối da lơ lửng bồng bềnh
+        skinModel.position.y = Math.sin(time) * 0.2;
+        
+        // Khối da tự xoay chầm chậm để show các góc
+        skinModel.rotation.y += 0.003;
+
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      window.addEventListener("resize", () => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
+      });
+
+      // Tương tác chuột làm nghiêng mô hình 3 lớp da
+      document.addEventListener("mousemove", (event) => {
+        const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+        const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        gsap.to(skinModel.rotation, {
+          x: mouseY * 0.3,
+          z: -mouseX * 0.3,
+          duration: 2,
+          ease: "power2.out",
+        });
+      });</script>
+  </body>
+</html>

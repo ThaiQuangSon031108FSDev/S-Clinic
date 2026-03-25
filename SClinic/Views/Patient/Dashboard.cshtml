@@ -1,0 +1,341 @@
+@model SClinic.Models.Patient
+@{
+    ViewData["Title"] = "Bảng điều khiển";
+    Layout = null; // Full-page layout like db-patient.html
+    var appointments = (ViewBag.Appointments as IEnumerable<SClinic.Models.Appointment>) ?? [];
+    var treatments   = (ViewBag.Treatments   as IEnumerable<SClinic.Models.PatientTreatment>) ?? [];
+    var activeTreat  = treatments.FirstOrDefault(t => t.Status == SClinic.Models.TreatmentStatus.Active);
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@Model.FullName | S-Clinic Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: { extend: {
+          fontFamily: { sans: ["Inter","sans-serif"], heading: ["Plus Jakarta Sans","sans-serif"] },
+          colors: { brand: { primary:"#0d9488", hover:"#0f766e", accent:"#D4A373" } }
+        }}
+      };
+    </script>
+    <style>
+      body { font-family:"Inter",sans-serif; background:#f8fafc; }
+      h1,h2,h3 { font-family:"Plus Jakarta Sans",sans-serif; }
+      .no-scrollbar::-webkit-scrollbar{display:none}
+      .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+      .fade-enter-active,.fade-leave-active{transition:opacity .3s ease,transform .3s ease}
+      .fade-enter-from,.fade-leave-to{opacity:0;transform:translateY(10px)}
+    </style>
+</head>
+<body>
+<div id="app" class="flex h-screen overflow-hidden">
+
+    <!-- ── SIDEBAR ─────────────────────────────────────────────────────── -->
+    <aside class="w-64 bg-white border-r border-slate-200 flex-col justify-between hidden md:flex z-10">
+        <div>
+            <div class="h-20 flex items-center px-8 border-b border-slate-100">
+                <span class="text-2xl font-extrabold text-brand-primary tracking-tight">S-CLINIC</span>
+            </div>
+            <nav class="p-4 space-y-2 mt-4">
+                <a href="#" @@click.prevent="tab='overview'"
+                   :class="tab==='overview'?'bg-teal-50 text-brand-primary font-semibold':'text-slate-600 hover:bg-slate-50 font-medium'"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors">
+                    🏠 Tổng quan
+                </a>
+                <a href="#" @@click.prevent="tab='appointments'"
+                   :class="tab==='appointments'?'bg-teal-50 text-brand-primary font-semibold':'text-slate-600 hover:bg-slate-50 font-medium'"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors">
+                    📅 Lịch hẹn của tôi
+                </a>
+                <a href="#" @@click.prevent="tab='treatments'"
+                   :class="tab==='treatments'?'bg-teal-50 text-brand-primary font-semibold':'text-slate-600 hover:bg-slate-50 font-medium'"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors">
+                    💊 Liệu trình &amp; Dịch vụ
+                </a>
+                <a href="#" @@click.prevent="tab='profile'"
+                   :class="tab==='profile'?'bg-teal-50 text-brand-primary font-semibold':'text-slate-600 hover:bg-slate-50 font-medium'"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors">
+                    👤 Hồ sơ cá nhân
+                </a>
+            </nav>
+        </div>
+        <div class="p-4 border-t border-slate-100">
+            <a href="/" class="flex items-center gap-3 px-4 py-3 text-brand-primary hover:bg-teal-50 rounded-xl font-semibold transition-colors">
+                🏠 Trang chủ
+            </a>
+            <form method="post" asp-controller="Account" asp-action="Logout">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="w-full flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl font-medium transition-colors text-left">
+                    🚪 Đăng xuất
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <!-- ── MAIN ────────────────────────────────────────────────────────── -->
+    <main class="flex-1 overflow-y-auto no-scrollbar relative">
+        <div class="max-w-6xl mx-auto px-6 md:px-8 py-10">
+
+            <!-- Header -->
+            <div class="flex justify-between items-end mb-10">
+                <div>
+                    <h1 class="text-3xl font-extrabold text-slate-900">👋 Xin chào, @Model.FullName!</h1>
+                    <p class="text-slate-500 mt-2">Chúc bạn một ngày tốt lành và rạng rỡ.</p>
+                </div>
+                <button @@click="bookingOpen=true"
+                        class="bg-brand-primary text-white px-5 py-2.5 rounded-full font-semibold hover:bg-brand-hover transition-colors shadow-md text-sm">
+                    + Đặt lịch khám mới
+                </button>
+            </div>
+
+            <transition name="fade" mode="out-in">
+
+                <!-- ── OVERVIEW TAB ────────────────────────────────────── -->
+                <div v-if="tab==='overview'" key="overview">
+                    <!-- KPI cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xl">⏰</div>
+                            <div>
+                                @{
+                                    var next = appointments.Where(a => a.Status == SClinic.Models.AppointmentStatus.Confirmed)
+                                                           .OrderBy(a => a.Schedule?.WorkDate)
+                                                           .FirstOrDefault();
+                                }
+                                @if (next != null)
+                                {
+                                    <p class="text-lg font-bold text-slate-900">@next.Schedule?.WorkDate.ToString("dd/MM")</p>
+                                    <p class="text-sm text-slate-500">@next.Schedule?.TimeSlot.ToString(@"hh\:mm")</p>
+                                }
+                                else
+                                {
+                                    <p class="text-lg font-bold text-slate-900">Chưa có lịch</p>
+                                    <p class="text-sm text-slate-500">Đặt lịch ngay nhé</p>
+                                }
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-amber-400 flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center text-xl">⚡</div>
+                            <div>
+                                <p class="text-lg font-bold text-slate-900">@treatments.Count(t => t.Status == SClinic.Models.TreatmentStatus.Active) Gói đang điều trị</p>
+                                <p class="text-sm text-slate-500">@(activeTreat?.Package?.PackageName ?? "Chưa có gói")</p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-green-50 text-green-500 flex items-center justify-center text-xl">✓</div>
+                            <div>
+                                <p class="text-lg font-bold text-slate-900">@appointments.Count(a => a.Status == SClinic.Models.AppointmentStatus.Completed) lần khám</p>
+                                <p class="text-sm text-slate-500">Lịch sử điều trị</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- Active treatment progress -->
+                        @if (activeTreat != null)
+                        {
+                            var pct = activeTreat.TotalSessions > 0
+                                      ? (int)Math.Round((double)activeTreat.UsedSessions / activeTreat.TotalSessions * 100)
+                                      : 0;
+                            <div class="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                                <div class="flex justify-between items-start mb-6">
+                                    <div>
+                                        <h2 class="text-xl font-bold text-slate-900">@activeTreat.Package?.PackageName</h2>
+                                        <p class="text-slate-500 mt-1">Bác sĩ: <span class="font-medium text-slate-700">@activeTreat.PrimaryDoctor?.FullName</span></p>
+                                    </div>
+                                    <span class="bg-emerald-50 text-emerald-600 text-xs font-bold px-3 py-1 rounded-full">Đang tiến hành</span>
+                                </div>
+                                <div class="mb-2 flex justify-between text-sm font-semibold">
+                                    <span class="text-slate-700">Tiến độ điều trị</span>
+                                    <span class="text-brand-primary">@activeTreat.UsedSessions / @activeTreat.TotalSessions Buổi</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-3 mb-4 overflow-hidden">
+                                    <div class="bg-brand-primary h-3 rounded-full transition-all duration-1000" style="width:@(pct)%"></div>
+                                </div>
+                                <div class="flex gap-4 mt-6">
+                                    <button @@click="bookingOpen=true" class="flex-1 py-3 rounded-xl border-2 border-brand-primary text-brand-primary font-bold hover:bg-teal-50 transition-colors">Đặt lịch tái khám</button>
+                                    <button @@click="tab='treatments'" class="flex-1 py-3 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-colors">Xem chi tiết phác đồ</button>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center gap-4">
+                                <span class="text-5xl">🎯</span>
+                                <h2 class="text-xl font-bold text-slate-900">Chưa có gói điều trị</h2>
+                                <p class="text-slate-500 text-sm">Đặt lịch khám để bác sĩ tư vấn phác đồ phù hợp nhất.</p>
+                                <button @@click="bookingOpen=true" class="px-6 py-3 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-hover transition-colors">Đặt lịch khám ngay</button>
+                            </div>
+                        }
+
+                        <!-- Recent activity -->
+                        <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                            <h2 class="text-xl font-bold text-slate-900 mb-6">Hoạt động gần đây</h2>
+                            <div class="space-y-5">
+                                @foreach (var a in appointments.OrderByDescending(x => x.Schedule?.WorkDate).Take(4))
+                                {
+                                    var icon  = a.Status == SClinic.Models.AppointmentStatus.Completed ? "✓" : "📅";
+                                    var color = a.Status == SClinic.Models.AppointmentStatus.Completed ? "green" : "blue";
+                                    <div class="flex gap-4">
+                                        <div class="w-8 h-8 rounded-full bg-@(color)-100 text-@(color)-600 flex items-center justify-center flex-shrink-0 text-xs">@icon</div>
+                                        <div>
+                                            <p class="text-sm font-bold text-slate-900">@a.Status</p>
+                                            <p class="text-xs text-slate-500 mt-1">@a.Schedule?.WorkDate.ToString("dd/MM/yyyy")</p>
+                                        </div>
+                                    </div>
+                                }
+                                @if (!appointments.Any())
+                                {
+                                    <p class="text-slate-400 text-sm text-center py-4">Chưa có hoạt động nào.</p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── APPOINTMENTS TAB ────────────────────────────────── -->
+                <div v-else-if="tab==='appointments'" key="appointments">
+                    <div class="flex justify-between items-end mb-6">
+                        <h2 class="text-2xl font-bold text-slate-900">Lịch hẹn của tôi</h2>
+                    </div>
+                    @if (!appointments.Any())
+                    {
+                        <div class="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                            <p class="text-slate-400">Chưa có lịch hẹn nào.</p>
+                        </div>
+                    }
+                    @foreach (var a in appointments.OrderByDescending(x => x.Schedule?.WorkDate))
+                    {
+                        var borderColor = a.Status == SClinic.Models.AppointmentStatus.Confirmed ? "border-l-brand-primary" : "border-l-slate-300";
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 border-l-4 @borderColor mb-4 hover:shadow-md transition-shadow">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <span class="bg-brand-primary/10 text-brand-primary text-xs font-bold px-3 py-1 rounded-full inline-block mb-2">@a.Status</span>
+                                    <h3 class="text-xl font-bold text-slate-900">Bs. @(a.Schedule?.Doctor?.FullName ?? "—")</h3>
+                                </div>
+                                <p class="font-mono font-bold text-slate-500 text-sm">#APT-@a.AppointmentId.ToString("D4")</p>
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 py-4 border-t border-slate-100">
+                                <div><p class="text-xs text-slate-400 mb-1">Ngày khám</p><p class="font-bold text-slate-800">@a.Schedule?.WorkDate.ToString("dd/MM/yyyy")</p></div>
+                                <div><p class="text-xs text-slate-400 mb-1">Giờ khám</p><p class="font-bold text-slate-800">@a.Schedule?.TimeSlot.ToString(@"hh\:mm")</p></div>
+                                <div><p class="text-xs text-slate-400 mb-1">Trạng thái</p><p class="font-bold text-slate-800">@a.Status</p></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- ── TREATMENTS TAB ──────────────────────────────────── -->
+                <div v-else-if="tab==='treatments'" key="treatments">
+                    <h2 class="text-2xl font-bold text-slate-900 mb-6">Gói Liệu Trình Đã Mua</h2>
+                    @if (!treatments.Any())
+                    {
+                        <div class="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                            <p class="text-slate-400">Chưa có gói liệu trình nào.</p>
+                        </div>
+                    }
+                    @foreach (var t in treatments)
+                    {
+                        var pct2 = t.TotalSessions > 0 ? (int)Math.Round((double)t.UsedSessions / t.TotalSessions * 100) : 0;
+                        var isActive = t.Status == SClinic.Models.TreatmentStatus.Active;
+                        <div class="bg-white p-8 rounded-2xl shadow-sm border-2 @(isActive ? "border-brand-primary/30" : "border-slate-100") relative overflow-hidden mb-6">
+                            @if (isActive)
+                            {
+                                <div class="absolute top-0 right-0 bg-brand-primary text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl">Đang kích hoạt</div>
+                            }
+                            <h3 class="text-xl font-bold text-slate-900 mb-1">@t.Package?.PackageName</h3>
+                            <p class="text-sm text-slate-500 mb-6">Bác sĩ: @t.PrimaryDoctor?.FullName • Giá: @t.Package?.Price.ToString("N0")đ</p>
+                            <!-- Session blocks -->
+                            <div class="flex gap-2 mb-2">
+                                @for (int i = 1; i <= t.TotalSessions; i++)
+                                {
+                                    <div class="h-8 flex-1 rounded-md transition-all @(i <= t.UsedSessions ? "bg-brand-primary" : "bg-slate-100")"></div>
+                                }
+                            </div>
+                            <div class="flex justify-between text-sm font-bold mt-2">
+                                <span class="text-brand-primary">Đã làm: @t.UsedSessions buổi</span>
+                                <span class="text-slate-400">Còn lại: @(t.TotalSessions - t.UsedSessions) buổi</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- ── PROFILE TAB ─────────────────────────────────────── -->
+                <div v-else-if="tab==='profile'" key="profile">
+                    <h2 class="text-2xl font-bold text-slate-900 mb-6">Hồ sơ cá nhân</h2>
+                    <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="flex items-center gap-6 mb-8 pb-8 border-b border-slate-100">
+                            <img src="https://ui-avatars.com/api/?name=@Uri.EscapeDataString(Model.FullName)&background=0d9488&color=fff&size=80"
+                                 class="w-20 h-20 rounded-full border-2 border-slate-200" alt="Avatar" />
+                            <div>
+                                <h3 class="text-xl font-bold text-slate-900">@Model.FullName</h3>
+                                <p class="text-sm text-slate-500 mt-1">Mã BN: #BN-@Model.PatientId.ToString("D4")</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-2">Họ và tên</label>
+                                <input type="text" value="@Model.FullName" readonly class="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 text-slate-600" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-2">Số điện thoại</label>
+                                <input type="text" value="@Model.Phone" readonly class="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-100 text-slate-500 cursor-not-allowed" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-2">Ngày sinh</label>
+                                <input type="text" value="@Model.DateOfBirth?.ToString("dd/MM/yyyy")" readonly class="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 text-slate-600" />
+                            </div>
+                            @if (!string.IsNullOrEmpty(Model.BaseMedicalHistory))
+                            {
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-bold text-slate-700 mb-2">Tiền sử dị ứng / Bệnh nền</label>
+                                    <textarea rows="3" readonly class="w-full border border-red-100 rounded-xl p-3 text-sm bg-red-50 text-red-700 font-medium focus:outline-none">@Model.BaseMedicalHistory</textarea>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+            </transition>
+        </div>
+    </main>
+
+    <!-- ── BOOKING MODAL → redirect to /Patient/Book ─────────────────── -->
+    <transition name="fade">
+        <div v-if="bookingOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <h2 class="text-xl font-bold text-slate-900">Đặt lịch hẹn mới</h2>
+                    <button @@click="bookingOpen=false" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 text-slate-600 hover:bg-red-100 hover:text-red-600 font-bold">✕</button>
+                </div>
+                <div class="p-8 text-center space-y-5">
+                    <div class="text-5xl">📅</div>
+                    <p class="text-slate-700 font-medium">Chọn dịch vụ, bác sĩ và khung giờ phù hợp với bạn.</p>
+                    <a href="/Patient/Book"
+                       class="block w-full py-3 bg-brand-primary text-white rounded-2xl font-bold hover:bg-brand-hover shadow-md transition-colors">
+                        Đặt lịch ngay →
+                    </a>
+                    <button @@click="bookingOpen=false" class="text-slate-400 text-sm hover:text-slate-600">Để sau</button>
+                </div>
+            </div>
+        </div>
+    </transition>
+
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script>
+const { createApp, ref } = Vue;
+createApp({
+    setup() {
+        const tab = ref('overview');
+        const bookingOpen = ref(false);
+        return { tab, bookingOpen };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

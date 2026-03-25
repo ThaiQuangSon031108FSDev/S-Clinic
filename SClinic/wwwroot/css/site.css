@@ -1,0 +1,147 @@
+/* ── Global Utilities ──────────────────────────────────────────────────── */
+/* Note: Using plain CSS (not @apply) since TailwindCSS is loaded via CDN */
+
+/* Navigation link helper */
+.nav-link {
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.5rem;
+    color: #475569;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 0.15s, color 0.15s;
+    text-decoration: none;
+    display: inline-block;
+}
+.nav-link:hover {
+    background-color: #f0f9ff;
+    color: #0369a1;
+}
+
+/* Card glass effect */
+.card-glass {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 1rem;
+    box-shadow: 0 4px 24px 0 rgba(14, 165, 233, 0.07);
+}
+
+/* ── Status Badges ─────────────────────────────────────────────────────── */
+.badge-pending, .badge-confirmed, .badge-completed, .badge-cancelled, .badge-active {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+.badge-pending   { background: #fef3c7; color: #92400e; }
+.badge-confirmed { background: #dbeafe; color: #1e40af; }
+.badge-completed { background: #d1fae5; color: #065f46; }
+.badge-cancelled { background: #fee2e2; color: #991b1b; }
+.badge-active    { background: #d1fae5; color: #065f46; }
+
+/* ── Hero gradient ─────────────────────────────────────────────────────── */
+.hero-gradient {
+    background: linear-gradient(135deg, #0ea5e9 0%, #7dd3fc 40%, #f4a9a8 80%, #e8c4a0 100%);
+    background-size: 300% 300%;
+    animation: gradientShift 8s ease infinite;
+}
+
+@keyframes gradientShift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* ── Skeleton loading ──────────────────────────────────────────────────── */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite;
+    border-radius: 0.5rem;
+}
+@keyframes skeleton-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ── Form inputs ───────────────────────────────────────────────────────── */
+.form-input {
+    width: 100%;
+    padding: 0.625rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #1e293b;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.form-input::placeholder { color: #94a3b8; }
+.form-input:focus {
+    border-color: transparent;
+    box-shadow: 0 0 0 2px #38bdf8;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+.btn-primary {
+    padding: 0.625rem 1.5rem;
+    border-radius: 0.5rem;
+    background: #0284c7;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.btn-primary:hover   { background: #0369a1; }
+.btn-primary:active  { transform: scale(0.96); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-secondary {
+    padding: 0.625rem 1.5rem;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: #475569;
+    font-size: 0.875rem;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+}
+.btn-secondary:hover  { background: #f8fafc; }
+.btn-secondary:active { transform: scale(0.96); }
+
+/* ── Table styles ──────────────────────────────────────────────────────── */
+.table-clinic { width: 100%; border-collapse: collapse; }
+
+.table-clinic thead th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: #f8fafc;
+}
+.table-clinic tbody td {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    color: #334155;
+    border-top: 1px solid #f1f5f9;
+}
+.table-clinic tbody tr { transition: background 0.1s; }
+.table-clinic tbody tr:hover { background: rgba(240, 249, 255, 0.5); }
+
+/* ── Page entry animation ──────────────────────────────────────────────── */
+.animate-fade-in {
+    animation: fadeIn 0.4s ease-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}

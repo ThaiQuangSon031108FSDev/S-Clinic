@@ -1,0 +1,212 @@
+@using System.Security.Claims
+@{
+    var role     = User.FindFirst(ClaimTypes.Role)?.Value ?? "";
+    var email    = User.FindFirst(ClaimTypes.Email)?.Value ?? "";
+    var name     = email.Split('@')[0];
+    var pageTitle = ViewData["Title"]?.ToString() ?? "Dashboard";
+
+    bool isAdmin   = role == "Admin";
+    bool isDoctor  = role == "Doctor"       || isAdmin;
+    bool isRecep   = role == "Receptionist" || isAdmin;
+    bool isCashier = role == "Cashier"      || isAdmin;
+
+    var avatarUrl = $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(name)}&background=1e293b&color=fff&size=40";
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@pageTitle | S-Clinic PRO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: { extend: {
+          fontFamily: { sans:["Inter","sans-serif"], heading:["Plus Jakarta Sans","sans-serif"] },
+          colors: { brand: { primary:"#0d9488", hover:"#0f766e", accent:"#D4A373" } }
+        }}
+      };
+    </script>
+    <style>
+      body { font-family:"Inter",sans-serif; background:#f1f5f9; }
+      h1,h2,h3 { font-family:"Plus Jakarta Sans",sans-serif; }
+      .no-scrollbar::-webkit-scrollbar { display:none; }
+      .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
+      .fade-enter-active,.fade-leave-active { transition:opacity .25s ease,transform .25s ease; }
+      .fade-enter-from,.fade-leave-to { opacity:0; transform:translateY(8px); }
+    </style>
+    @RenderSection("Styles", required: false)
+</head>
+<body>
+<!-- Page transition overlay -->
+<div id="page-transition" style="position:fixed;inset:0;background:#0f766e;z-index:99999;opacity:0;pointer-events:none;transition:opacity 0.3s ease;"></div>
+<div class="flex h-screen overflow-hidden">
+
+    <!-- ── SIDEBAR ─────────────────────────────────────────────────────── -->
+    <aside class="w-64 bg-slate-900 text-slate-300 border-r border-slate-800 flex-col justify-between hidden md:flex z-30 flex-shrink-0">
+        <div class="overflow-y-auto no-scrollbar pb-10">
+            <!-- Logo -->
+            <div class="h-20 flex items-center px-6 border-b border-slate-800 sticky top-0 bg-slate-900 z-10">
+                <span class="text-2xl font-extrabold text-white tracking-tight">
+                    S-CLINIC <span class="text-brand-primary text-sm font-bold align-top">PRO</span>
+                </span>
+            </div>
+
+            @* ── Lễ tân & Tiếp nhận ── *@
+            @if (isRecep)
+            {
+                <div class="px-6 py-4">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Lễ tân &amp; Tiếp nhận</p>
+                    <nav class="space-y-1">
+                        <a asp-controller="Receptionist" asp-action="Dashboard"
+                           class="@(pageTitle=="Hàng đợi"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
+                            📋 Check-in Hàng đợi
+                            <span class="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">!</span>
+                        </a>
+                        <a asp-controller="Receptionist" asp-action="Appointments"
+                           class="@(pageTitle=="Lịch hẹn"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
+                            📅 Lịch hẹn
+                        </a>
+                        <a asp-controller="Receptionist" asp-action="RegisterPatient"
+                           class="@(pageTitle=="Đăng ký BN"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
+                            👤 Đăng ký Bệnh nhân
+                        </a>
+                    </nav>
+                </div>
+            }
+
+            @* ── Lâm Sàng ── *@
+            @if (isDoctor)
+            {
+                <div class="px-6 py-2">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Lâm Sàng</p>
+                    <nav class="space-y-1">
+                        <a asp-controller="Doctor" asp-action="Dashboard"
+                           class="@(pageTitle=="Khám bệnh"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
+                            🩺 Khám bệnh &amp; Kê đơn
+                        </a>
+                        <a asp-controller="Doctor" asp-action="Schedule"
+                           class="@(pageTitle=="Lịch làm việc"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
+                            🗓 Lịch làm việc
+                        </a>
+                    </nav>
+                </div>
+            }
+
+            @* ── Tài Chính & Danh mục ── *@
+            @if (isCashier)
+            {
+                <div class="px-6 py-4">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Tài Chính &amp; Danh Mục</p>
+                    <nav class="space-y-1">
+                        <a asp-controller="Admin" asp-action="Finance"
+                           class="@(pageTitle=="Thu ngân"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium relative">
+                            💵 Thu ngân Hóa đơn
+                            <span class="absolute right-3 bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">!</span>
+                        </a>
+                        @if (isAdmin)
+                        {
+                            <a asp-controller="Admin" asp-action="Inventory"
+                               class="@(pageTitle=="Kho thuốc"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
+                                💊 Danh mục Thuốc
+                            </a>
+                        }
+                    </nav>
+                </div>
+            }
+
+            @* ── Hệ thống (Admin only) ── *@
+            @if (isAdmin)
+            {
+                <div class="px-6 py-2">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Hệ thống</p>
+                    <nav class="space-y-1">
+                        <a asp-controller="Admin" asp-action="Dashboard"
+                           class="@(pageTitle=="Báo cáo"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
+                            📊 Báo cáo Tổng quan
+                        </a>
+                    </nav>
+                </div>
+            }
+        </div>
+
+        <!-- Logout -->
+        <div class="p-4 border-t border-slate-800">
+            <div class="flex items-center gap-3 px-3 py-2 mb-2">
+                <img src="@avatarUrl" class="w-8 h-8 rounded-full" alt="Avatar" />
+                <div>
+                    <p class="text-xs font-bold text-white leading-tight">@name</p>
+                    <p class="text-[10px] text-slate-400">@role</p>
+                </div>
+            </div>
+            <form method="post" asp-controller="Account" asp-action="Logout">
+                @Html.AntiForgeryToken()
+                <button type="submit"
+                        class="w-full flex items-center gap-3 px-3 py-2 text-red-400 hover:bg-red-900/20 hover:text-red-300 rounded-lg font-medium transition-colors text-sm">
+                    🚪 Đăng xuất
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <!-- ── MAIN AREA ───────────────────────────────────────────────────── -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+        <!-- Top header -->
+        <header class="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-20 flex-shrink-0">
+            <div>
+                <h1 class="text-xl font-bold text-slate-800">@pageTitle</h1>
+                <p class="text-sm text-slate-500">Hôm nay: @DateTime.Now.ToString("dddd, dd/MM/yyyy")</p>
+            </div>
+            <div class="flex gap-4 items-center">
+                <button class="relative p-2 text-slate-400 hover:text-brand-primary transition-colors">
+                    🔔
+                    <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
+                </button>
+                <div class="flex items-center gap-3 pl-4 ml-2 border-l border-slate-200">
+                    <img src="@avatarUrl" class="w-8 h-8 rounded-full border border-slate-300" alt="Avatar" />
+                    <div class="hidden sm:block">
+                        <p class="text-xs font-bold text-slate-700 leading-tight">@name</p>
+                        <p class="text-[10px] text-brand-primary font-semibold">@role</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page content -->
+        <main class="flex-1 overflow-y-auto no-scrollbar p-8">
+            @RenderBody()
+        </main>
+    </div>
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+@RenderSection("Scripts", required: false)
+<script>
+(function(){
+    var overlay = document.getElementById('page-transition');
+    overlay.style.opacity='1'; overlay.style.pointerEvents='all';
+    window.addEventListener('DOMContentLoaded', function(){
+        requestAnimationFrame(function(){
+            overlay.style.transition='opacity 0.4s ease';
+            overlay.style.opacity='0';
+            setTimeout(function(){ overlay.style.pointerEvents='none'; }, 420);
+        });
+    });
+    document.addEventListener('click', function(e){
+        var link = e.target.closest('a[href]');
+        if (!link) return;
+        var href = link.getAttribute('href');
+        if (!href || href.startsWith('#') || href.startsWith('javascript') || href.startsWith('mailto') || href.startsWith('tel')) return;
+        if (link.target === '_blank') return;
+        if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+        e.preventDefault();
+        overlay.style.pointerEvents='all';
+        overlay.style.transition='opacity 0.28s ease';
+        overlay.style.opacity='1';
+        setTimeout(function(){ window.location.href = href; }, 300);
+    });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hệ thống Quản trị | S-Clinic</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              heading: ["Plus Jakarta Sans", "sans-serif"],
+            },
+            colors: {
+              brand: {
+                primary: "#0d9488",
+                hover: "#0f766e",
+                accent: "#D4A373",
+              },
+              slate: { 50: "#f8fafc", 800: "#1e293b", 900: "#0f172a" },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f1f5f9;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: "Plus Jakarta Sans", sans-serif;
+      }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      .fade-enter-active,
+      .fade-leave-active {
+        transition: opacity 0.3s ease, transform 0.3s ease;
+      }
+      .fade-enter-from,
+      .fade-leave-to {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="app" class="flex h-screen overflow-hidden">
+      <aside
+        class="w-64 bg-slate-900 text-slate-300 border-r border-slate-800 flex flex-col justify-between hidden md:flex transition-all z-30"
+      >
+        <div class="overflow-y-auto no-scrollbar pb-10">
+          <div
+            class="h-20 flex items-center px-6 border-b border-slate-800 sticky top-0 bg-slate-900 z-10"
+          >
+            <span class="text-2xl font-extrabold text-white tracking-tight"
+              >S-CLINIC
+              <span class="text-brand-primary text-sm font-bold align-top"
+                >PRO</span
+              ></span
+            >
+          </div>
+
+          <div class="px-6 py-4">
+            <p
+              class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3"
+            >
+              Lễ tân & Tiếp nhận
+            </p>
+            <nav class="space-y-1">
+              <a
+                href="#"
+                @click.prevent="currentTab = 'patients'"
+                :class="currentTab === 'patients' ? 'bg-brand-primary text-white shadow-md shadow-teal-900/50' : 'hover:bg-slate-800 hover:text-white'"
+                class="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium"
+              >
+                👤 Quản lý Bệnh nhân
+              </a>
+              <a
+                href="#"
+                @click.prevent="currentTab = 'kanban'"
+                :class="currentTab === 'kanban' ? 'bg-brand-primary text-white shadow-md shadow-teal-900/50' : 'hover:bg-slate-800 hover:text-white'"
+                class="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium relative"
+              >
+                📋 Check-in Hàng đợi
+                <span
+                  class="absolute right-3 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                  >5</span
+                >
+              </a>
+            </nav>
+          </div>
+
+          <div class="px-6 py-2">
+            <p
+              class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3"
+            >
+              Lâm Sàng
+            </p>
+            <nav class="space-y-1">
+              <a
+                href="#"
+                @click.prevent="currentTab = 'doctor'"
+                :class="currentTab === 'doctor' ? 'bg-brand-primary text-white shadow-md shadow-teal-900/50' : 'hover:bg-slate-800 hover:text-white'"
+                class="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium"
+              >
+                🩺 Khám bệnh & Kê đơn
+              </a>
+            </nav>
+          </div>
+
+          <div class="px-6 py-4">
+            <p
+              class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3"
+            >
+              Tài Chính & Danh Mục
+            </p>
+            <nav class="space-y-1">
+              <a
+                href="#"
+                @click.prevent="currentTab = 'finance'"
+                :class="currentTab === 'finance' ? 'bg-brand-primary text-white shadow-md shadow-teal-900/50' : 'hover:bg-slate-800 hover:text-white'"
+                class="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium relative"
+              >
+                💵 Thu ngân Hóa đơn
+                <span
+                  class="absolute right-3 bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                  >1</span
+                >
+              </a>
+              <a
+                href="#"
+                @click.prevent="currentTab = 'inventory'"
+                :class="currentTab === 'inventory' ? 'bg-brand-primary text-white shadow-md shadow-teal-900/50' : 'hover:bg-slate-800 hover:text-white'"
+                class="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium"
+              >
+                💊 Danh mục Thuốc
+              </a>
+            </nav>
+          </div>
+
+          <div class="px-6 py-2">
+            <p
+              class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3"
+            >
+              Hệ thống
+            </p>
+            <nav class="space-y-1">
+              <a
+                href="#"
+                @click.prevent="currentTab = 'dashboard'"
+                :class="currentTab === 'dashboard' ? 'bg-brand-primary text-white shadow-md shadow-teal-900/50' : 'hover:bg-slate-800 hover:text-white'"
+                class="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium"
+              >
+                📊 Báo cáo Tổng quan
+              </a>
+            </nav>
+          </div>
+        </div>
+      </aside>
+
+      <main class="flex-1 overflow-y-auto no-scrollbar relative flex flex-col">
+        <header
+          class="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-20 shrink-0"
+        >
+          <div>
+            <h1 class="text-xl font-bold text-slate-800">{{ pageTitle }}</h1>
+            <p class="text-sm text-slate-500">Hôm nay: Thứ 4, 18/03/2026</p>
+          </div>
+          <div class="flex gap-4 items-center">
+            <button
+              class="relative p-2 text-slate-400 hover:text-brand-primary transition-colors"
+            >
+              🔔
+              <span
+                class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"
+              ></span>
+            </button>
+            <div
+              class="flex items-center gap-3 px-2 py-2 border-l border-slate-200 pl-4 ml-2"
+            >
+              <img
+                src="https://ui-avatars.com/api/?name=Admin&background=1e293b&color=fff"
+                class="w-8 h-8 rounded-full border border-slate-300"
+                alt="Avatar"
+              />
+              <div class="hidden sm:block">
+                <p class="text-xs font-bold text-slate-700 leading-tight">
+                  Admin System
+                </p>
+                <a
+                  href="index.html"
+                  class="text-[10px] text-red-500 hover:underline"
+                  >Đăng xuất</a
+                >
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div class="p-8 flex-1">
+          <transition name="fade" mode="out-in">
+            <div v-if="currentTab === 'dashboard'" key="dashboard">
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div
+                  class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-brand-primary"
+                >
+                  <p class="text-sm text-slate-500 font-semibold mb-1">
+                    Doanh thu hôm nay
+                  </p>
+                  <h3 class="text-2xl font-extrabold text-slate-900">
+                    12.500.000₫
+                  </h3>
+                  <p class="text-xs text-emerald-600 mt-2 font-medium">
+                    ↑ 15% so với hôm qua
+                  </p>
+                </div>
+                <div
+                  class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-blue-500"
+                >
+                  <p class="text-sm text-slate-500 font-semibold mb-1">
+                    Khách chờ khám
+                  </p>
+                  <h3 class="text-2xl font-extrabold text-slate-900">
+                    05
+                    <span class="text-sm font-normal text-slate-400"
+                      >người</span
+                    >
+                  </h3>
+                  <p class="text-xs text-slate-500 mt-2">Đang ở sảnh chờ</p>
+                </div>
+                <div
+                  class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-amber-500"
+                >
+                  <p class="text-sm text-slate-500 font-semibold mb-1">
+                    Lịch hẹn mới
+                  </p>
+                  <h3 class="text-2xl font-extrabold text-slate-900">
+                    12
+                    <span class="text-sm font-normal text-slate-400">lịch</span>
+                  </h3>
+                  <p class="text-xs text-amber-600 mt-2 font-medium">
+                    Cần Lễ tân duyệt
+                  </p>
+                </div>
+                <div
+                  class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-purple-500"
+                >
+                  <p class="text-sm text-slate-500 font-semibold mb-1">
+                    Thuốc sắp hết
+                  </p>
+                  <h3 class="text-2xl font-extrabold text-slate-900">
+                    03
+                    <span class="text-sm font-normal text-slate-400">loại</span>
+                  </h3>
+                  <p class="text-xs text-red-500 mt-2 font-medium">
+                    Dưới 10 sản phẩm
+                  </p>
+                </div>
+              </div>
+
+              <div
+                class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden p-8"
+              >
+                <div class="flex justify-between items-center mb-6">
+                  <h3 class="text-lg font-bold text-slate-800">
+                    Biểu đồ Doanh thu (7 ngày gần nhất)
+                  </h3>
+                  <select
+                    class="border border-slate-200 rounded-lg p-2 text-sm"
+                  >
+                    <option>7 Ngày qua</option>
+                    <option>Tháng này</option>
+                  </select>
+                </div>
+                <div
+                  class="h-64 flex items-end gap-4 sm:gap-8 border-b border-slate-200 pb-2 relative"
+                >
+                  <div
+                    class="w-full flex justify-between absolute bottom-0 left-0 h-full flex-col-reverse py-2 -z-10"
+                  >
+                    <div
+                      class="w-full border-b border-dashed border-slate-200"
+                    ></div>
+                    <div
+                      class="w-full border-b border-dashed border-slate-200"
+                    ></div>
+                    <div
+                      class="w-full border-b border-dashed border-slate-200"
+                    ></div>
+                    <div
+                      class="w-full border-b border-dashed border-slate-200"
+                    ></div>
+                  </div>
+                  <div class="flex-1 flex flex-col items-center group">
+                    <div
+                      class="w-full bg-teal-100 group-hover:bg-teal-200 rounded-t-md h-1/4 transition-all relative"
+                    >
+                      <span
+                        class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity text-slate-600"
+                        >3.2M</span
+                      >
+                    </div>
+                    <span class="text-xs text-slate-500 mt-2">T5</span>
+                  </div>
+                  <div class="flex-1 flex flex-col items-center group">
+                    <div
+                      class="w-full bg-teal-200 group-hover:bg-teal-300 rounded-t-md h-2/4 transition-all relative"
+                    >
+                      <span
+                        class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity text-slate-600"
+                        >6.5M</span
+                      >
+                    </div>
+                    <span class="text-xs text-slate-500 mt-2">T6</span>
+                  </div>
+                  <div class="flex-1 flex flex-col items-center group">
+                    <div
+                      class="w-full bg-teal-300 group-hover:bg-teal-400 rounded-t-md h-3/4 transition-all relative"
+                    >
+                      <span
+                        class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity text-slate-600"
+                        >9.1M</span
+                      >
+                    </div>
+                    <span class="text-xs text-slate-500 mt-2">T7</span>
+                  </div>
+                  <div class="flex-1 flex flex-col items-center group">
+                    <div
+                      class="w-full bg-teal-500 group-hover:bg-teal-600 rounded-t-md h-full transition-all relative shadow-lg"
+                    >
+                      <span
+                        class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-teal-700"
+                        >14.2M</span
+                      >
+                    </div>
+                    <span class="text-xs font-bold text-slate-800 mt-2"
+                      >CN</span
+                    >
+                  </div>
+                  <div class="flex-1 flex flex-col items-center group">
+                    <div
+                      class="w-full bg-teal-100 group-hover:bg-teal-200 rounded-t-md h-1/5 transition-all relative"
+                    >
+                      <span
+                        class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity text-slate-600"
+                        >2.5M</span
+                      >
+                    </div>
+                    <span class="text-xs text-slate-500 mt-2">T2</span>
+                  </div>
+                  <div class="flex-1 flex flex-col items-center group">
+                    <div
+                      class="w-full bg-teal-400 group-hover:bg-teal-500 rounded-t-md h-4/5 transition-all relative"
+                    >
+                      <span
+                        class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity text-slate-600"
+                        >11.8M</span
+                      >
+                    </div>
+                    <span class="text-xs text-slate-500 mt-2">T3</span>
+                  </div>
+                  <div class="flex-1 flex flex-col items-center group">
+                    <div
+                      class="w-full bg-brand-primary group-hover:bg-brand-hover rounded-t-md h-[90%] transition-all relative shadow-lg"
+                    >
+                      <span
+                        class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-brand-primary"
+                        >12.5M</span
+                      >
+                    </div>
+                    <span class="text-xs font-bold text-brand-primary mt-2"
+                      >H.Nay</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-else-if="currentTab === 'patients'" key="patients">
+              <div
+                class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
+              >
+                <div
+                  class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50"
+                >
+                  <div class="flex gap-3">
+                    <input
+                      type="text"
+                      placeholder="Tìm tên, SĐT bệnh nhân..."
+                      class="text-sm border border-slate-200 rounded-lg px-4 py-2 w-72 focus:ring-2 focus:ring-brand-primary focus:outline-none"
+                    />
+                    <button
+                      class="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-50"
+                    >
+                      Lọc
+                    </button>
+                  </div>
+                  <button
+                    @click="openAddPatient"
+                    class="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-brand-hover shadow-sm transition-colors"
+                  >
+                    + Thêm Hồ Sơ Mới
+                  </button>
+                </div>
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr
+                      class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200"
+                    >
+                      <th class="px-6 py-4 font-semibold">Mã BA</th>
+                      <th class="px-6 py-4 font-semibold">
+                        Thông tin Bệnh nhân
+                      </th>
+                      <th class="px-6 py-4 font-semibold">Năm sinh</th>
+                      <th class="px-6 py-4 font-semibold">Lịch sử khám</th>
+                      <th class="px-6 py-4 font-semibold text-right">
+                        Thao tác
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    <tr class="hover:bg-slate-50 transition-colors">
+                      <td class="px-6 py-4 font-mono text-sm text-slate-500">
+                        #BN-0142
+                      </td>
+                      <td class="px-6 py-4">
+                        <p class="text-sm font-bold text-slate-900">
+                          Trần Phương Anh
+                        </p>
+                        <p class="text-xs text-slate-500">0987.654.321</p>
+                      </td>
+                      <td class="px-6 py-4 text-sm text-slate-700">1998</td>
+                      <td
+                        class="px-6 py-4 text-sm text-brand-primary font-medium"
+                      >
+                        3 lần (Đang theo gói mụn)
+                      </td>
+                      <td class="px-6 py-4 text-right">
+                        <button
+                          class="text-slate-400 hover:text-brand-primary text-sm font-semibold mr-3"
+                        >
+                          Sửa</button
+                        ><button
+                          class="text-slate-400 hover:text-brand-primary text-sm font-semibold"
+                        >
+                          Xem BA
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div
+              v-else-if="currentTab === 'kanban'"
+              key="kanban"
+              class="h-full flex flex-col"
+            >
+              <div
+                class="flex gap-6 overflow-x-auto pb-4 h-[calc(100vh-180px)]"
+              >
+                <div
+                  class="flex-1 min-w-[320px] bg-slate-100/50 rounded-2xl border border-slate-200 flex flex-col"
+                >
+                  <div
+                    class="p-4 border-b border-slate-200/60 flex justify-between items-center bg-slate-100 rounded-t-2xl"
+                  >
+                    <h3 class="font-bold text-slate-700">Đang chờ khám</h3>
+                    <span
+                      class="bg-slate-200 text-slate-600 text-xs font-bold px-2.5 py-1 rounded-md"
+                      >1 Khách</span
+                    >
+                  </div>
+                  <div class="p-4 flex-1 overflow-y-auto space-y-3">
+                    <div
+                      class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-amber-400 cursor-grab hover:shadow-md transition-shadow"
+                    >
+                      <div class="flex justify-between items-start mb-2">
+                        <span class="text-xs font-bold text-slate-400"
+                          >#STT-01</span
+                        ><span class="text-xs font-medium text-slate-500"
+                          >08:45 AM</span
+                        >
+                      </div>
+                      <h4 class="font-bold text-slate-900 text-lg">
+                        Nguyễn Văn A
+                      </h4>
+                      <p class="text-sm text-slate-600 mt-1">
+                        Khám mới - Dị ứng mỹ phẩm
+                      </p>
+                      <div class="mt-4 pt-3 border-t border-slate-100">
+                        <p class="text-xs text-slate-500 mb-2">
+                          Yêu cầu BS: <b>Trần Thị B</b>
+                        </p>
+                        <button
+                          class="w-full bg-teal-50 text-teal-700 hover:bg-teal-600 hover:text-white py-2 rounded-lg text-sm font-semibold transition-colors"
+                        >
+                          Gọi vào phòng khám
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="flex-1 min-w-[320px] bg-teal-50/30 rounded-2xl border border-teal-100 flex flex-col"
+                >
+                  <div
+                    class="p-4 border-b border-teal-100 flex justify-between items-center bg-teal-50 rounded-t-2xl"
+                  >
+                    <h3 class="font-bold text-teal-700">Đang Khám / Dịch vụ</h3>
+                    <span
+                      class="bg-teal-200 text-teal-800 text-xs font-bold px-2.5 py-1 rounded-md"
+                      >1 Khách</span
+                    >
+                  </div>
+                  <div class="p-4 flex-1 overflow-y-auto space-y-3">
+                    <div
+                      class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-teal-500 cursor-grab"
+                    >
+                      <div class="flex justify-between items-start mb-2">
+                        <span
+                          class="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded"
+                          >Phòng Khám 1</span
+                        >
+                      </div>
+                      <h4 class="font-bold text-slate-900 text-lg">Lê Thị C</h4>
+                      <p class="text-sm text-brand-accent font-medium mt-1">
+                        Tái khám mụn (Buổi 4/10)
+                      </p>
+                      <p class="text-xs text-slate-400 mt-3 animate-pulse">
+                        BS. B đang chẩn đoán...
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="flex-1 min-w-[320px] bg-blue-50/30 rounded-2xl border border-blue-100 flex flex-col"
+                >
+                  <div
+                    class="p-4 border-b border-blue-100 flex justify-between items-center bg-blue-50 rounded-t-2xl"
+                  >
+                    <h3 class="font-bold text-blue-700">Chờ Thu Ngân</h3>
+                    <span
+                      class="bg-blue-200 text-blue-800 text-xs font-bold px-2.5 py-1 rounded-md"
+                      >1 Khách</span
+                    >
+                  </div>
+                  <div class="p-4 flex-1 overflow-y-auto space-y-3">
+                    <div
+                      class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-blue-500"
+                    >
+                      <h4 class="font-bold text-slate-900 text-lg">
+                        Phạm Văn D
+                      </h4>
+                      <p class="text-sm text-slate-600 mt-1">
+                        Trạng thái: Đã khám xong
+                      </p>
+                      <div
+                        class="mt-3 bg-slate-50 p-2 rounded border border-slate-100"
+                      >
+                        <p class="text-xs text-slate-500">Hóa đơn chờ thu:</p>
+                        <p class="text-base font-extrabold text-slate-800 mt-1">
+                          1.250.000đ
+                        </p>
+                      </div>
+                      <button
+                        @click="currentTab = 'finance'"
+                        class="w-full mt-3 bg-blue-600 text-white hover:bg-blue-700 py-2 rounded-lg text-sm font-semibold transition-colors"
+                      >
+                        Chuyển sang Thu Ngân
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-else-if="currentTab === 'doctor'" key="doctor">
+              <div
+                class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-140px)]"
+              >
+                <div
+                  class="col-span-1 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden"
+                >
+                  <div class="p-5 border-b border-slate-100 bg-slate-50">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="w-12 h-12 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold text-xl"
+                      >
+                        L
+                      </div>
+                      <div>
+                        <h3 class="font-bold text-slate-900 text-lg">
+                          Lê Thị C
+                        </h3>
+                        <p class="text-xs text-slate-500">
+                          Mã BA: #BN-0891 • 24 tuổi
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="p-5 overflow-y-auto flex-1 space-y-6">
+                    <div>
+                      <h4
+                        class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2"
+                      >
+                        Tiền sử dị ứng
+                      </h4>
+                      <p
+                        class="text-sm text-red-600 bg-red-50 p-2 rounded-lg border border-red-100 font-medium"
+                      >
+                        ⚠️ Dị ứng Penicillin, Da nhạy cảm cồn
+                      </p>
+                    </div>
+                    <div>
+                      <h4
+                        class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2"
+                      >
+                        Timeline Ảnh Da
+                      </h4>
+                      <div class="grid grid-cols-2 gap-2">
+                        <div class="relative group">
+                          <img
+                            src="https://images.unsplash.com/photo-1512496015851-a1c8485215f5?auto=format&fit=crop&w=300&q=80"
+                            class="rounded-lg border border-slate-200 object-cover h-24 w-full"
+                          /><span
+                            class="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded"
+                            >Buổi 3</span
+                          >
+                        </div>
+                        <div class="relative group">
+                          <img
+                            src="https://images.unsplash.com/photo-1522337660859-02fbefca4702?auto=format&fit=crop&w=300&q=80"
+                            class="rounded-lg border border-slate-200 object-cover h-24 w-full opacity-70"
+                          /><span
+                            class="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded"
+                            >Buổi 1</span
+                          >
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden"
+                >
+                  <div
+                    class="p-5 border-b border-slate-100 flex justify-between items-center"
+                  >
+                    <h2 class="text-lg font-bold text-slate-800">
+                      Phiếu Khám Bệnh - Buổi 4
+                    </h2>
+                    <span
+                      class="bg-brand-accent/20 text-brand-accent text-xs font-bold px-3 py-1 rounded-full"
+                      >Gói Trị Mụn</span
+                    >
+                  </div>
+                  <div class="p-6 overflow-y-auto flex-1 space-y-6">
+                    <div>
+                      <label class="block text-sm font-bold text-slate-700 mb-2"
+                        >Ghi chú tình trạng da
+                        <span class="text-red-500">*</span></label
+                      ><textarea
+                        rows="3"
+                        class="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-primary"
+                        placeholder="Mụn viêm đã giảm 70%..."
+                      ></textarea>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-bold text-slate-700 mb-2"
+                        >Upload Ảnh Thực Tế
+                        <span class="text-red-500">*</span></label
+                      >
+                      <div
+                        class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer"
+                      >
+                        <span class="text-3xl mb-2 block">📸</span>
+                        <p class="text-sm font-medium text-slate-600">
+                          Kéo thả tải ảnh
+                        </p>
+                      </div>
+                    </div>
+                    <div
+                      class="bg-slate-50 p-4 rounded-xl border border-slate-100"
+                    >
+                      <div class="flex justify-between items-center mb-4">
+                        <label class="block text-sm font-bold text-slate-700"
+                          >Chỉ định thêm</label
+                        ><button class="text-brand-primary text-sm font-bold">
+                          + Thêm dòng
+                        </button>
+                      </div>
+                      <div class="flex gap-3 items-center mb-2">
+                        <select
+                          class="flex-1 border border-slate-200 rounded-lg p-2 text-sm"
+                        >
+                          <option selected>
+                            Kem phục hồi B5 La Roche
+                          </option></select
+                        ><input
+                          type="number"
+                          value="1"
+                          class="w-20 border border-slate-200 rounded-lg p-2 text-sm text-center"
+                        /><button class="text-red-400 p-2">✕</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3"
+                  >
+                    <button
+                      class="px-6 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-600"
+                    >
+                      Lưu nháp</button
+                    ><button
+                      class="px-6 py-2 bg-brand-primary text-white rounded-xl text-sm font-bold shadow-md"
+                    >
+                      Hoàn tất Khám
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-else-if="currentTab === 'finance'" key="finance">
+              <div
+                class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
+              >
+                <div
+                  class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50"
+                >
+                  <h2 class="text-lg font-bold text-slate-800">
+                    Danh sách Hóa Đơn Chờ Thu
+                  </h2>
+                  <div class="flex gap-3">
+                    <input
+                      type="text"
+                      placeholder="Tìm theo Mã HĐ, Tên KH..."
+                      class="text-sm border border-slate-200 rounded-lg px-4 py-2 w-64 focus:ring-2 focus:ring-brand-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr
+                      class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200"
+                    >
+                      <th class="px-6 py-4 font-semibold">Mã HĐ</th>
+                      <th class="px-6 py-4 font-semibold">Bệnh nhân</th>
+                      <th class="px-6 py-4 font-semibold">Tổng tiền</th>
+                      <th class="px-6 py-4 font-semibold">Trạng thái</th>
+                      <th class="px-6 py-4 font-semibold text-right">
+                        Thao tác
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    <tr
+                      class="hover:bg-slate-50 transition-colors bg-blue-50/20"
+                    >
+                      <td
+                        class="px-6 py-4 font-mono text-sm text-slate-500 font-bold"
+                      >
+                        #INV-1029
+                      </td>
+                      <td class="px-6 py-4">
+                        <p class="text-sm font-bold text-slate-900">
+                          Phạm Văn D
+                        </p>
+                        <p class="text-xs text-slate-500">
+                          Khám mụn & Kê đơn thuốc
+                        </p>
+                      </td>
+                      <td
+                        class="px-6 py-4 text-sm font-extrabold text-slate-800"
+                      >
+                        1.250.000đ
+                      </td>
+                      <td class="px-6 py-4">
+                        <span
+                          class="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full"
+                          >Chờ thanh toán</span
+                        >
+                      </td>
+                      <td class="px-6 py-4 text-right">
+                        <button
+                          @click="confirmPayment"
+                          class="bg-brand-primary text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-brand-hover shadow-sm"
+                        >
+                          Thu Tiền ✓
+                        </button>
+                      </td>
+                    </tr>
+                    <tr class="hover:bg-slate-50 transition-colors opacity-70">
+                      <td class="px-6 py-4 font-mono text-sm text-slate-500">
+                        #INV-1028
+                      </td>
+                      <td class="px-6 py-4">
+                        <p class="text-sm font-bold text-slate-900">
+                          Trần Phương Anh
+                        </p>
+                        <p class="text-xs text-slate-500">
+                          Gói Triệt lông nách
+                        </p>
+                      </td>
+                      <td class="px-6 py-4 text-sm font-bold text-slate-800">
+                        2.500.000đ
+                      </td>
+                      <td class="px-6 py-4">
+                        <span
+                          class="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full"
+                          >Đã thanh toán</span
+                        >
+                      </td>
+                      <td class="px-6 py-4 text-right">
+                        <button
+                          class="text-slate-400 hover:text-brand-primary text-sm font-semibold"
+                        >
+                          In lại Bill
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div v-else-if="currentTab === 'inventory'" key="inventory">
+              <div
+                class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
+              >
+                <div
+                  class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50"
+                >
+                  <h2 class="text-lg font-bold text-slate-800">
+                    Kho Thuốc & Skincare
+                  </h2>
+                  <button
+                    @click="updateStock"
+                    class="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-brand-hover shadow-sm"
+                  >
+                    + Nhập Kho
+                  </button>
+                </div>
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr
+                      class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200"
+                    >
+                      <th class="px-6 py-4 font-semibold">Mã SP</th>
+                      <th class="px-6 py-4 font-semibold">Tên Sản phẩm</th>
+                      <th class="px-6 py-4 font-semibold">Phân loại</th>
+                      <th class="px-6 py-4 font-semibold text-center">
+                        Tồn kho
+                      </th>
+                      <th class="px-6 py-4 font-semibold text-right">
+                        Giá bán
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    <tr class="hover:bg-slate-50 transition-colors">
+                      <td class="px-6 py-4 font-mono text-xs text-slate-500">
+                        SP-011
+                      </td>
+                      <td class="px-6 py-4 font-bold text-slate-800 text-sm">
+                        Kem phục hồi B5 La Roche-Posay
+                      </td>
+                      <td class="px-6 py-4">
+                        <span
+                          class="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded"
+                          >Skincare</span
+                        >
+                      </td>
+                      <td
+                        class="px-6 py-4 text-center font-bold text-slate-800"
+                      >
+                        45
+                      </td>
+                      <td
+                        class="px-6 py-4 text-right text-sm font-bold text-brand-primary"
+                      >
+                        420.000đ
+                      </td>
+                    </tr>
+                    <tr
+                      class="hover:bg-slate-50 transition-colors bg-red-50/30"
+                    >
+                      <td class="px-6 py-4 font-mono text-xs text-slate-500">
+                        SP-015
+                      </td>
+                      <td class="px-6 py-4 font-bold text-slate-800 text-sm">
+                        Kháng sinh Azithromycin 500mg
+                      </td>
+                      <td class="px-6 py-4">
+                        <span
+                          class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded"
+                          >Thuốc Kê Đơn</span
+                        >
+                      </td>
+                      <td
+                        class="px-6 py-4 text-center font-extrabold text-red-600"
+                      >
+                        03
+                      </td>
+                      <td
+                        class="px-6 py-4 text-right text-sm font-bold text-brand-primary"
+                      >
+                        15.000đ
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </transition>
+        </div>
+      </main>
+
+      <transition name="fade">
+        <div
+          v-if="isAddPatientModalOpen"
+          class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm"
+        >
+          <div
+            class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          >
+            <div
+              class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0"
+            >
+              <h2 class="text-xl font-bold text-slate-900">
+                Tạo Hồ Sơ Bệnh Nhân Mới
+              </h2>
+              <button
+                @click="closeAddPatient"
+                class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 text-slate-600 hover:bg-red-100 hover:text-red-600 transition-colors font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <div
+              class="p-6 md:p-8 overflow-y-auto flex-1 no-scrollbar space-y-5"
+            >
+              <div
+                class="bg-blue-50 text-blue-700 p-4 rounded-xl text-sm font-medium border border-blue-100 mb-2"
+              >
+                ℹ️ Dành cho khách hàng vãng lai.
+              </div>
+              <div>
+                <label class="block text-sm font-bold text-slate-700 mb-2"
+                  >Họ và tên đầy đủ <span class="text-red-500">*</span></label
+                ><input
+                  type="text"
+                  v-model="newPatient.name"
+                  class="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-primary"
+                />
+              </div>
+              <div class="grid grid-cols-2 gap-5">
+                <div>
+                  <label class="block text-sm font-bold text-slate-700 mb-2"
+                    >SĐT <span class="text-red-500">*</span></label
+                  ><input
+                    type="text"
+                    v-model="newPatient.phone"
+                    class="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-primary"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-bold text-slate-700 mb-2"
+                    >Ngày sinh <span class="text-red-500">*</span></label
+                  ><input
+                    type="date"
+                    v-model="newPatient.dob"
+                    class="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-primary"
+                  />
+                </div>
+              </div>
+            </div>
+            <div
+              class="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 shrink-0"
+            >
+              <button
+                @click="closeAddPatient"
+                class="px-6 py-2.5 border border-slate-300 rounded-xl text-sm font-bold text-slate-600 hover:bg-white transition-colors"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                @click="saveNewPatient"
+                :disabled="!isFormValid"
+                :class="!isFormValid ? 'opacity-50 cursor-not-allowed' : 'hover:bg-brand-hover shadow-md'"
+                class="px-8 py-2.5 bg-brand-primary text-white rounded-xl font-bold text-sm transition-all"
+              >
+                Lưu Hồ Sơ ✓
+              </button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </div>
+
+    <script>
+      const { createApp, ref, computed } = Vue;
+
+      createApp({
+        setup() {
+          const currentTab = ref("dashboard");
+
+          const pageTitle = computed(() => {
+            switch (currentTab.value) {
+              case "dashboard":
+                return "Tổng quan Hệ thống (Admin Dashboard)";
+              case "patients":
+                return "Quản lý Hồ sơ Bệnh nhân";
+              case "kanban":
+                return "Bảng Điều phối Hàng đợi (Kanban)";
+              case "doctor":
+                return "Khu vực Lâm Sàng & Khám Bệnh";
+              case "finance":
+                return "Quản lý Tài Chính & Thu Ngân";
+              case "inventory":
+                return "Quản lý Kho & Danh Mục";
+              default:
+                return "Quản trị hệ thống";
+            }
+          });
+
+          const isAddPatientModalOpen = ref(false);
+          const newPatient = ref({ name: "", phone: "", dob: "", history: "" });
+
+          const openAddPatient = () => {
+            isAddPatientModalOpen.value = true;
+          };
+          const closeAddPatient = () => {
+            isAddPatientModalOpen.value = false;
+            newPatient.value = { name: "", phone: "", dob: "", history: "" };
+          };
+
+          const isFormValid = computed(() => {
+            return (
+              newPatient.value.name.trim() !== "" &&
+              newPatient.value.phone.trim() !== "" &&
+              newPatient.value.dob !== ""
+            );
+          });
+
+          const saveNewPatient = () => {
+            alert(
+              `✅ Tạo hồ sơ thành công!\n\nKhách hàng: ${newPatient.value.name}`
+            );
+            closeAddPatient();
+          };
+
+          // Chức năng Demo cho Thu ngân
+          const confirmPayment = () => {
+            alert(
+              "✅ Xác nhận thanh toán thành công!\nHóa đơn: #INV-1029\nSố tiền: 1.250.000đ\nĐã xuất kho thuốc tự động."
+            );
+          };
+
+          // Chức năng Demo cho Kho
+          const updateStock = () => {
+            alert(
+              "⚙️ Mở Form tạo Phiếu nhập kho (Tính năng đang phát triển)..."
+            );
+          };
+
+          return {
+            currentTab,
+            pageTitle,
+            isAddPatientModalOpen,
+            newPatient,
+            openAddPatient,
+            closeAddPatient,
+            isFormValid,
+            saveNewPatient,
+            confirmPayment,
+            updateStock,
+          };
+        },
+      }).mount("#app");
+    </script>
+  </body>
+</html>

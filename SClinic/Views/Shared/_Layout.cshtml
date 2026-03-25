@@ -1,0 +1,88 @@
+﻿<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] | S-Clinic - Giải pháp Da liễu chuẩn Y khoa</title>
+    <meta name="description" content="S-Clinic - Hệ thống phòng khám chuyên khoa da liễu, đặt lịch online, điều trị mụn, trẻ hoá da bằng công nghệ tiên tiến." />
+
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                        heading: ["Plus Jakarta Sans", "sans-serif"],
+                    },
+                    colors: {
+                        brand: {
+                            primary: "#0d9488",
+                            hover:   "#0f766e",
+                            accent:  "#D4A373",
+                        },
+                    },
+                },
+            },
+        };
+    </script>
+
+    <style>
+        body { font-family: "Inter", sans-serif; color: #475569; }
+        h1, h2, h3, h4 { font-family: "Plus Jakarta Sans", sans-serif; letter-spacing: -0.02em; }
+        .glass-nav {
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.4);
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .fade-enter-active, .fade-leave-active { transition: opacity .25s ease, transform .25s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(8px); }
+    </style>
+
+    @RenderSection("Styles", required: false)
+</head>
+<body class="bg-slate-50 antialiased overflow-x-hidden">
+<!-- Page transition overlay -->
+<div id="page-transition" style="position:fixed;inset:0;background:#0f766e;z-index:99999;opacity:0;pointer-events:none;transition:opacity 0.3s ease;"></div>
+
+    @RenderBody()
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    @RenderSection("Scripts", required: false)
+<script>
+(function(){
+    var overlay = document.getElementById('page-transition');
+    // Fade in on load
+    overlay.style.opacity='1'; overlay.style.pointerEvents='all';
+    window.addEventListener('DOMContentLoaded', function(){
+        requestAnimationFrame(function(){
+            overlay.style.transition='opacity 0.4s ease';
+            overlay.style.opacity='0';
+            setTimeout(function(){ overlay.style.pointerEvents='none'; }, 420);
+        });
+    });
+    // Fade out on navigation
+    document.addEventListener('click', function(e){
+        var link = e.target.closest('a[href]');
+        if (!link) return;
+        var href = link.getAttribute('href');
+        if (!href || href.startsWith('#') || href.startsWith('javascript') || href.startsWith('mailto') || href.startsWith('tel')) return;
+        if (link.target === '_blank') return;
+        if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+        e.preventDefault();
+        overlay.style.pointerEvents='all';
+        overlay.style.transition='opacity 0.28s ease';
+        overlay.style.opacity='1';
+        setTimeout(function(){ window.location.href = href; }, 300);
+    });
+})();
+</script>
+</body>
+</html>

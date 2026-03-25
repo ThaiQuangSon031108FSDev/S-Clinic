@@ -1,0 +1,200 @@
+@{
+    ViewData["Title"] = "Đặt lịch hẹn";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+<div id="app">
+    <!-- Toolbar -->
+    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+        <div class="flex gap-2">
+            <select v-model="filter" class="border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-brand-primary focus:outline-none">
+                <option value="all">Tất cả trạng thái</option>
+                <option value="pending">Chờ khám</option>
+                <option value="confirmed">Đã xác nhận</option>
+                <option value="completed">Hoàn tất</option>
+            </select>
+            <select v-model="timeFilter" class="border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-brand-primary focus:outline-none">
+                <option value="all">Tất cả thời gian</option>
+                <option value="1">Hôm nay (1 ngày)</option>
+                <option value="7">Trong vòng 7 ngày</option>
+                <option value="30">Trong vòng 30 ngày</option>
+                <option value="60">Trong vòng 60 ngày</option>
+                <option value="90">Trong vòng 90 ngày</option>
+            </select>
+        </div>
+        <div class="flex sm:ml-auto gap-2">
+            <input type="text" v-model="search" placeholder="Tìm tên bệnh nhân, bác sĩ..."
+                   class="text-sm border border-slate-200 rounded-lg px-4 py-2 w-56 focus:ring-2 focus:ring-brand-primary focus:outline-none bg-white" />
+            <a asp-controller="Receptionist" asp-action="RegisterPatient"
+               class="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-brand-hover transition-colors flex items-center gap-1">
+                + Đặt lịch mới
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+            <p class="text-2xl font-extrabold text-slate-900">[[ total ]]</p>
+            <p class="text-xs text-slate-500 mt-1">Tổng lịch hẹn</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+            <p class="text-2xl font-extrabold text-amber-600">[[ pendingCount ]]</p>
+            <p class="text-xs text-slate-500 mt-1">Chờ khám</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+            <p class="text-2xl font-extrabold text-blue-600">[[ confirmedCount ]]</p>
+            <p class="text-xs text-slate-500 mt-1">Xác nhận</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+            <p class="text-2xl font-extrabold text-emerald-600">[[ completedCount ]]</p>
+            <p class="text-xs text-slate-500 mt-1">Hoàn tất</p>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                    <th class="px-6 py-4 font-semibold">Mã LH</th>
+                    <th class="px-6 py-4 font-semibold">Bệnh nhân</th>
+                    <th class="px-6 py-4 font-semibold">Bác sĩ</th>
+                    <th class="px-6 py-4 font-semibold">Ngày & Giờ</th>
+                    <th class="px-6 py-4 font-semibold">Trạng thái</th>
+                    <th class="px-6 py-4 font-semibold text-right">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                <tr v-for="a in displayed" :key="a.id"
+                    class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4 font-mono text-xs text-slate-400 font-bold">#APT-[[ String(a.id).padStart(4,'0') ]]</td>
+                    <td class="px-6 py-4">
+                        <p class="text-sm font-bold text-slate-900">[[ a.patient ]]</p>
+                        <p class="text-xs text-slate-400">[[ a.phone ]]</p>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-slate-700">Bs. [[ a.doctor ]]</td>
+                    <td class="px-6 py-4">
+                        <p class="text-sm font-bold text-slate-800">[[ a.date ]]</p>
+                        <p class="text-xs text-slate-400">[[ a.time ]]</p>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span :class="{
+                            'bg-amber-100 text-amber-700':  a.status==='Pending',
+                            'bg-blue-100 text-blue-700':    a.status==='Confirmed',
+                            'bg-green-100 text-green-700':  a.status==='Completed',
+                            'bg-red-100 text-red-700':      a.status==='Cancelled'
+                        }" class="text-xs font-bold px-3 py-1 rounded-full">
+                            [[ {Pending:'Chờ khám',Confirmed:'Xác nhận',Completed:'Hoàn tất',Cancelled:'Huỷ'}[a.status] || a.status ]]
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button @@click="confirm(a)" v-if="a.status==='Pending'"
+                                class="text-blue-600 hover:text-blue-800 text-xs font-bold mr-2">Xác nhận</button>
+                        <button @@click="cancel(a)" v-if="['Pending','Confirmed'].includes(a.status)"
+                                class="text-red-400 hover:text-red-600 text-xs font-bold">Huỷ</button>
+                        <span v-if="a.status==='Completed'" class="text-xs text-slate-300">—</span>
+                    </td>
+                </tr>
+                <tr v-if="!displayed.length">
+                    <td colspan="6" class="px-6 py-12 text-center text-slate-400">Không có lịch hẹn nào.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const { createApp, ref, computed, onMounted } = Vue;
+createApp({
+    delimiters: ['[[',']]'],
+    setup() {
+        const filter = ref('all');
+        const timeFilter = ref('all');
+        const search = ref('');
+        const appts = ref([]);
+
+        const loadData = async () => {
+            try {
+                const res = await fetch('/api/appointmentsapi/all');
+                const data = await res.json();
+                appts.value = data.map(a => ({
+                    id: a.appointmentId,
+                    patient: a.patientName,
+                    phone: a.patientPhone,
+                    doctor: a.doctorName,
+                    date: a.date,
+                    dateIso: a.dateIso, // yyyy-mm-dd format
+                    time: a.time,
+                    status: a.status
+                }));
+            } catch (err) {
+                console.error('Failed to load appointments', err);
+            }
+        };
+
+        onMounted(loadData);
+
+        const total          = computed(() => appts.value.length);
+        const pendingCount   = computed(() => appts.value.filter(a => a.status==='Pending').length);
+        const confirmedCount = computed(() => appts.value.filter(a => a.status==='Confirmed').length);
+        const completedCount = computed(() => appts.value.filter(a => a.status==='Completed').length);
+
+        const displayed = computed(() => {
+            let list = appts.value;
+            // Trạng thái filter
+            if (filter.value !== 'all') {
+                list = list.filter(a => a.status.toLowerCase() === filter.value);
+            }
+            
+            // Thời gian filter (+/- N ngày)
+            if (timeFilter.value !== 'all') {
+                const days = parseInt(timeFilter.value);
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                
+                list = list.filter(a => {
+                    if (!a.dateIso) return false;
+                    const aDate = new Date(a.dateIso);
+                    const diffTime = Math.abs(aDate - today);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    if (days === 1) return diffDays === 0; // Hôm nay
+                    return diffDays <= days;
+                });
+            }
+            
+            // Tìm kiếm text
+            if (search.value) {
+                const q = search.value.toLowerCase();
+                list = list.filter(a => a.patient.toLowerCase().includes(q) || a.doctor.toLowerCase().includes(q) || a.phone.includes(q));
+            }
+            return list;
+        });
+
+        const changeStatus = async (a, newStatus) => {
+            try {
+                const res = await fetch(`/api/appointmentsapi/${a.id}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ Status: newStatus })
+                });
+                if (res.ok) {
+                    a.status = newStatus;
+                } else {
+                    alert('Không thể cập nhật trạng thái.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Lỗi kết nối Server.');
+            }
+        };
+
+        const confirm = (a) => { changeStatus(a, 'Confirmed'); };
+        const cancel  = (a) => { if(window.confirm('Huỷ lịch hẹn này?')) changeStatus(a, 'Cancelled'); };
+
+        return { filter, timeFilter, search, appts, total, pendingCount, confirmedCount, completedCount, displayed, confirm, cancel };
+    }
+}).mount('#app');
+</script>
+}

@@ -1,0 +1,272 @@
+@{
+    ViewData["Title"] = "Đăng ký tài khoản";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 px-4 py-10">
+    <div class="w-full max-w-md">
+        <div class="text-center mb-8">
+            <a href="/" class="inline-flex items-center gap-2 mb-2">
+                <div class="w-10 h-10 bg-brand-primary rounded-xl flex items-center justify-center text-white font-extrabold text-lg">S</div>
+                <span class="text-2xl font-extrabold text-white">S-Clinic</span>
+            </a>
+            <p class="text-slate-400 text-sm">Tạo tài khoản bệnh nhân</p>
+        </div>
+
+        <div id="app" class="bg-white rounded-3xl shadow-2xl overflow-hidden">
+
+            <!-- Step tabs -->
+            <div class="flex border-b border-slate-100">
+                <div v-for="(s, i) in steps" :key="i"
+                     :class="step === i+1 ? 'bg-teal-50 text-brand-primary border-b-2 border-brand-primary' :
+                             step > i+1  ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 bg-white'"
+                     class="flex-1 py-3.5 text-center text-xs font-bold transition-colors select-none">
+                    <span v-if="step > i+1">✓ </span>[[ s ]]
+                </div>
+            </div>
+
+            <div class="p-8">
+
+                <!-- ─── STEP 1: Email ──────────────────────────────── -->
+                <div v-if="step===1">
+                    <h2 class="text-xl font-bold text-slate-900 mb-1">Xác minh Email</h2>
+                    <p class="text-slate-500 text-sm mb-6">Nhập email để nhận mã OTP xác thực.</p>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Địa chỉ Email <span class="text-red-500">*</span></label>
+                            <input v-model="emailInput" type="email" placeholder="example@gmail.com"
+                                   @@keyup.enter="sendOtp"
+                                   class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none transition-all" />
+                        </div>
+                        <p v-if="err1" class="text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-100">⚠️ [[ err1 ]]</p>
+                        <button @@click="sendOtp" :disabled="!emailValid || sending"
+                                :class="!emailValid || sending ? 'opacity-50 cursor-not-allowed':'hover:bg-brand-hover shadow-md'"
+                                class="w-full bg-brand-primary text-white py-3 rounded-xl font-bold text-sm transition-all">
+                            <span v-if="sending">
+                                <svg class="inline w-4 h-4 animate-spin mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/></svg>Đang gửi OTP...
+                            </span>
+                            <span v-else>📧 Gửi mã OTP →</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ─── STEP 2: OTP ────────────────────────────────── -->
+                <div v-if="step===2">
+                    <h2 class="text-xl font-bold text-slate-900 mb-1">Nhập mã OTP</h2>
+                    <p class="text-slate-500 text-sm mb-1">Mã đã được gửi đến</p>
+                    <p class="text-brand-primary font-bold text-sm mb-5">[[ emailInput ]]</p>
+                    <p v-if="devOtpBanner" class="text-xs text-orange-700 bg-orange-50 border border-orange-200 px-3 py-2 rounded-lg mb-3 font-bold">[[ devOtpBanner ]]</p>
+                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 px-3 py-2 rounded-lg mb-5">📬 Kiểm tra hộp thư đến (hoặc Spam) của bạn.</p>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Mã OTP (6 số)</label>
+                            <input v-model="otpCode" type="text" maxlength="6" placeholder="______"
+                                   @@keyup.enter="verifyOtp" inputmode="numeric"
+                                   class="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-3xl text-center tracking-[0.8rem] font-extrabold focus:border-brand-primary focus:outline-none transition-all" />
+                        </div>
+                        <p v-if="err2" class="text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-100">⚠️ [[ err2 ]]</p>
+                        <button @@click="verifyOtp" :disabled="otpCode.length < 6 || verifying"
+                                :class="otpCode.length < 6 || verifying ? 'opacity-50 cursor-not-allowed':'hover:bg-brand-hover shadow-md'"
+                                class="w-full bg-brand-primary text-white py-3 rounded-xl font-bold text-sm transition-all">
+                            <span v-if="verifying">⏳ Đang xác minh...</span>
+                            <span v-else>✓ Xác minh OTP</span>
+                        </button>
+                        <div class="flex justify-between text-sm">
+                            <button @@click="step=1; otpCode=''; err2=''" class="text-slate-500 hover:text-slate-700">← Đổi email</button>
+                            <button @@click="sendOtp" :disabled="sending" class="text-brand-primary hover:text-brand-hover font-semibold">Gửi lại mã</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ─── STEP 3: Hoàn thiện hồ sơ ─────────────────── -->
+                <div v-if="step===3">
+                    <h2 class="text-xl font-bold text-slate-900 mb-1">Hoàn thiện hồ sơ</h2>
+                    <p class="text-slate-500 text-sm mb-6">Điền thông tin cá nhân để hoàn tất.</p>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Họ và tên <span class="text-red-500">*</span></label>
+                            <input v-model="profile.fullName" type="text" placeholder="Nguyễn Văn A"
+                                   class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Số điện thoại
+                                <span class="text-xs text-slate-400 font-normal">(để liên kết hồ sơ nếu đã từng đến khám)</span>
+                            </label>
+                            <input v-model="profile.phone" type="tel" placeholder="0912 345 678"
+                                   class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                            <p v-if="profile.phone && phoneLinked" class="text-emerald-600 text-xs mt-1.5 font-semibold">
+                                ✅ Tìm thấy hồ sơ bệnh nhân — sẽ liên kết tự động!
+                            </p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Mật khẩu <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <input v-model="profile.password" :type="showPw ? 'text':'password'"
+                                       placeholder="Tối thiểu 8 ký tự"
+                                       class="w-full border border-slate-200 rounded-xl px-4 py-3 pr-12 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                                <button type="button" @@click="showPw=!showPw"
+                                        class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm">
+                                    [[ showPw ? '🙈':'👁️' ]]
+                                </button>
+                            </div>
+                            <!-- Password strength bar -->
+                            <div class="flex gap-1 mt-2">
+                                <div v-for="n in 4" :key="n"
+                                     :class="pwStrength>=n ? ['bg-red-400','bg-amber-400','bg-yellow-400','bg-emerald-500'][n-1] : 'bg-slate-200'"
+                                     class="h-1.5 flex-1 rounded-full transition-all duration-300"></div>
+                            </div>
+                            <p class="text-xs mt-1" :class="['text-slate-400','text-red-400','text-amber-500','text-yellow-500','text-emerald-600'][pwStrength]">
+                                [[ ['','Quá yếu — không được dùng','Yếu','Khá','Mạnh 💪'][pwStrength] ]]
+                            </p>
+                        </div>
+                        <p v-if="err3" class="text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-100">⚠️ [[ err3 ]]</p>
+                        <button @@click="submitRegister" :disabled="!canSubmit || submitting"
+                                :class="!canSubmit||submitting ? 'opacity-50 cursor-not-allowed':'hover:bg-brand-hover shadow-md'"
+                                class="w-full bg-brand-primary text-white py-3 rounded-xl font-bold text-sm transition-all">
+                            <span v-if="submitting">⏳ Đang tạo tài khoản...</span>
+                            <span v-else>✓ Hoàn tất Đăng ký</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ─── STEP 4: Xong ───────────────────────────────── -->
+                <div v-if="step===4" class="text-center py-4">
+                    <div class="text-6xl mb-6">🎉</div>
+                    <h2 class="text-2xl font-extrabold text-slate-900 mb-2">Đăng ký thành công!</h2>
+                    <p class="text-slate-500 text-sm mb-1">Tài khoản đã được tạo cho</p>
+                    <p class="text-brand-primary font-bold mb-6">[[ emailInput ]]</p>
+                    <a asp-controller="Account" asp-action="Login"
+                       class="inline-block bg-brand-primary text-white px-8 py-3 rounded-2xl font-bold hover:bg-brand-hover shadow-md transition-colors">
+                        Đăng nhập ngay →
+                    </a>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div v-if="step < 4" class="px-8 pb-6 text-center border-t border-slate-100 pt-5">
+                <p class="text-sm text-slate-500">Đã có tài khoản?
+                    <a asp-controller="Account" asp-action="Login" class="text-brand-primary font-bold hover:underline">Đăng nhập</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const { createApp, ref, computed, watch } = Vue;
+createApp({
+    delimiters: ['[[',']]'],
+    setup() {
+        const step        = ref(1);
+        const emailInput  = ref('');
+        const otpCode     = ref('');
+        const phoneLinked = ref(false);
+        const sending     = ref(false);
+        const verifying   = ref(false);
+        const submitting  = ref(false);
+        const showPw      = ref(false);
+        const err1 = ref(''); const err2 = ref(''); const err3 = ref('');
+        const steps = ['Email', 'OTP', 'Hồ sơ'];
+
+        const profile = ref({ fullName:'', phone:'', password:'' });
+
+        const emailValid = computed(() => /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/.test(emailInput.value));
+        const pwStrength = computed(() => {
+            const p = profile.value.password;
+            let s = 0;
+            if (p.length >= 8)       s++;
+            if (/[A-Z]/.test(p))     s++;
+            if (/\d/.test(p))        s++;
+            if (/[^A-Za-z0-9]/.test(p)) s++;
+            return s;
+        });
+        const canSubmit = computed(() =>
+            profile.value.fullName.trim().length > 1 &&
+            !/\d/.test(profile.value.fullName) &&
+            profile.value.password.length >= 8 &&
+            pwStrength.value >= 2
+        );
+
+        const devOtpBanner = ref('');
+
+        const sendOtp = async () => {
+            err1.value = '';
+            if (!emailValid.value) { err1.value = 'Email không hợp lệ.'; return; }
+            sending.value = true;
+            try {
+                const res  = await fetch('/Account/SendOtp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: emailInput.value })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    step.value    = 2;
+                    otpCode.value = '';
+                    // Dev fallback: server returned OTP directly (email failed)
+                    if (data.devOtp) {
+                        otpCode.value    = data.devOtp;
+                        devOtpBanner.value = `🔧 Chế độ dev: OTP = ${data.devOtp} (đã tự điền)`;
+                    } else {
+                        devOtpBanner.value = '';
+                    }
+                } else {
+                    err1.value = data.message;
+                }
+            } catch { err1.value = 'Lỗi kết nối. Thử lại.'; }
+            sending.value = false;
+        };
+
+        const verifyOtp = async () => {
+            err2.value = '';
+            verifying.value = true;
+            try {
+                const res  = await fetch('/Account/VerifyOtp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: emailInput.value, code: otpCode.value })
+                });
+                const data = await res.json();
+                if (data.success) { step.value = 3; }
+                else              { err2.value = data.message; }
+            } catch { err2.value = 'Lỗi kết nối.'; }
+            verifying.value = false;
+        };
+
+        const submitRegister = async () => {
+            err3.value = '';
+            if (!profile.value.fullName.trim()) { err3.value = 'Vui lòng nhập họ tên.'; return; }
+            if (/\d/.test(profile.value.fullName)) { err3.value = 'Họ tên không được chứa chữ số.'; return; }
+            if (profile.value.password.length < 8) { err3.value = 'Mật khẩu tối thiểu 8 ký tự.'; return; }
+            submitting.value = true;
+            try {
+                const res  = await fetch('/Account/CompleteRegister', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phone:    profile.value.phone,
+                        fullName: profile.value.fullName,
+                        email:    emailInput.value,
+                        password: profile.value.password
+                    })
+                });
+                const data = await res.json();
+                if (data.success) { step.value = 4; }
+                else              { err3.value = data.message; }
+            } catch { err3.value = 'Lỗi kết nối.'; }
+            submitting.value = false;
+        };
+
+        return {
+            step, steps, emailInput, otpCode, profile, phoneLinked,
+            emailValid, pwStrength, canSubmit, showPw,
+            sending, verifying, submitting,
+            err1, err2, err3, devOtpBanner,
+            sendOtp, verifyOtp, submitRegister
+        };
+    }
+}).mount('#app');
+</script>
+}

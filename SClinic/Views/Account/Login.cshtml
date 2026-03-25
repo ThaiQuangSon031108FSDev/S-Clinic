@@ -1,0 +1,85 @@
+@{
+    ViewData["Title"] = "Đăng nhập";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-12">
+    <div class="w-full max-w-md">
+
+        <!-- Logo -->
+        <div class="text-center mb-8">
+            <a href="/" class="inline-block">
+                <span class="text-3xl font-extrabold text-brand-primary tracking-tight">S-CLINIC</span>
+            </a>
+            <p class="text-slate-500 mt-2 text-sm">Đăng nhập để quản lý lịch hẹn của bạn</p>
+        </div>
+
+        <!-- Card -->
+        <div class="bg-white rounded-3xl shadow-lg border border-slate-100 p-8">
+            <h1 class="text-2xl font-extrabold text-slate-900 mb-6">Chào mừng trở lại</h1>
+
+            @if (ViewData["Error"] != null)
+            {
+                <div class="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 font-medium">
+                    ⚠️ @ViewData["Error"]
+                </div>
+            }
+
+            <form method="post" asp-action="Login" asp-controller="Account" class="space-y-5">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+
+                <div>
+                    <label for="email" class="block text-sm font-bold text-slate-700 mb-2">Email</label>
+                    <input id="email" type="email" name="email" required autocomplete="email"
+                           placeholder="admin@sclinic.vn"
+                           class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none transition-shadow" />
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-bold text-slate-700 mb-2">Mật khẩu</label>
+                    <div class="relative">
+                        <input id="password" type="password" name="password" required autocomplete="current-password"
+                               placeholder="••••••••"
+                               class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none transition-shadow pr-12" />
+                        <button type="button" onclick="togglePwd()" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-brand-primary">
+                            👁
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit"
+                        class="w-full bg-brand-primary text-white py-3.5 rounded-xl font-bold text-base hover:bg-brand-hover shadow-md active:scale-95 transition-all">
+                    Đăng nhập →
+                </button>
+            </form>
+
+            <!-- Demo credentials hint -->
+            <div class="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-500 space-y-1">
+                <p class="font-bold text-slate-600 mb-2">Demo accounts (mật khẩu: <code class="text-brand-primary">Sclinic@123</code>)</p>
+                <p>🔴 Admin: <code>admin@sclinic.vn</code></p>
+                <p>🩺 Bác sĩ: <code>bs.lethib@sclinic.vn</code></p>
+                <p>📋 Lễ tân: <code>letan1@sclinic.vn</code></p>
+                <p>💊 Bệnh nhân: <code>thaiquangson@gmail.com</code></p>
+            </div>
+        </div>
+
+        <p class="text-center text-slate-500 text-sm mt-5">
+            Chưa có tài khoản?
+            <a asp-controller="Account" asp-action="Register" class="text-brand-primary font-bold hover:underline">Đăng ký ngay →</a>
+        </p>
+
+        <p class="text-center text-slate-400 text-xs mt-3">
+            © 2026 S-Clinic · <a href="/" class="hover:text-brand-primary">Về trang chủ</a>
+        </p>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function togglePwd() {
+    const p = document.getElementById('password');
+    p.type = p.type === 'password' ? 'text' : 'password';
+}
+</script>
+}

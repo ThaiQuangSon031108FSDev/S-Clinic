@@ -1,0 +1,63 @@
+
+(0 rows affected)
+
+(0 rows affected)
+
+(0 rows affected)
+
+(0 rows affected)
+
+(0 rows affected)
+
+(0 rows affected)
+
+(0 rows affected)
+
+(0 rows affected)
+
+(0 rows affected)
+
+(0 rows affected)
+
+(14 rows affected)
+
+(5 rows affected)
+
+(0 rows affected)
+
+(0 rows affected)
+
+(0 rows affected)
+
+(5 rows affected)
+
+(14 rows affected)
+
+(5 rows affected)
+
+(15 rows affected)
+
+(5 rows affected)
+
+(5 rows affected)
+
+(10 rows affected)
+
+(2 rows affected)
+
+(8 rows affected)
+
+(7 rows affected)
+
+(3 rows affected)
+
+(5 rows affected)
+✅ SEED DATA ĐÃ ĐƯỢC ĐỔ THÀNH CÔNG VÀO CƠ SỞ DỮ LIỆU S-CLINIC!
+ 
+📌 Thông tin đăng nhập demo (tất cả đều dùng mật khẩu: Sclinic@123):
+   Admin       : admin@sclinic.vn
+   Bác sĩ      : bs.lethib@sclinic.vn
+   Lễ tân      : letan1@sclinic.vn
+   Thu ngân    : thungan1@sclinic.vn
+   Bệnh nhân 1 : thaiquangson@gmail.com
+   Bệnh nhân 2 : phuonganh.tran@gmail.com
