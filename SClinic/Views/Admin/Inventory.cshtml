@@ -62,7 +62,8 @@
                     <td class="px-6 py-4 text-sm font-semibold text-slate-800">[[ m.price ]]</td>
                     <td class="px-6 py-4 text-right">
                         <button @@click="restock(m)" class="text-brand-primary hover:text-brand-hover text-xs font-bold mr-3">Nhập thêm</button>
-                        <button @@click="editMed(m)" class="text-slate-400 hover:text-slate-700 text-xs font-bold">Sửa</button>
+                        <button @@click="editMed(m)" class="text-slate-400 hover:text-slate-700 text-xs font-bold mr-3">Sửa</button>
+                        <button @@click="deleteMed(m)" class="text-red-400 hover:text-red-600 text-xs font-bold">Xóa</button>
                     </td>
                 </tr>
                 <tr v-if="!filteredMeds.length">
@@ -219,6 +220,17 @@ createApp({
             restockModal.value = null;
         };
 
+        // Bug #14: Soft delete
+        const deleteMed = async (m) => {
+            if (!confirm(`Xóa thuốc "${m.name}"? Hành động này có thể hoàn tác bởi Admin.`)) return;
+            const res = await fetch(`/api/medicinesapi/${m.id}`, { method: 'DELETE' });
+            if (res.ok) {
+                meds.value = meds.value.filter(x => x.id !== m.id);
+            } else {
+                alert('Không thể xóa thuốc này.');
+            }
+        };
+
         const saveEdit = async () => {
             const m = editModal.value;
             if (!m.name.trim() || !m.categoryId) { editError.value = 'Vui lòng điền đầy đủ thông tin.'; return; }
@@ -239,7 +251,7 @@ createApp({
         onMounted(async () => { await loadData(); await loadCategories(); });
 
         return { search, catFilter, meds, allCategories, categories, lowStock, totalStock, filteredMeds,
-                 restockModal, restockQty, restock, editMed, openAdd, confirmRestock,
+                 restockModal, restockQty, restock, editMed, openAdd, confirmRestock, deleteMed,
                  editModal, editError, saving, saveEdit };
     }
 }).mount('#app');

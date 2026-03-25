@@ -79,6 +79,34 @@ public class InvoicesApiController(ApplicationDbContext db) : ControllerBase
         await db.SaveChangesAsync();
         return Ok(new { invoice.InvoiceId });
     }
+
+    // GET api/invoicesapi/revenue-chart?range=week|month  (Bug #7 fix)
+    [HttpGet("revenue-chart")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> RevenueChart([FromQuery] string range = "week")
+    {
+        var today    = DateTime.Today;
+        var tomorrow = today.AddDays(1);
+        int days     = range == "month" ? 30 : 7;
+        var from     = today.AddDays(-(days - 1));
+
+        var raw = await db.Invoices
+            .Where(i => i.PaymentStatus == PaymentStatus.Paid
+                     && i.CreatedDate >= from && i.CreatedDate < tomorrow)
+            .GroupBy(i => i.CreatedDate.Date)
+            .Select(g => new { Date = g.Key, Total = g.Sum(x => x.TotalAmount) })
+            .ToListAsync();
+
+        // Fill zero for missing days
+        var result = Enumerable.Range(0, days).Select(offset =>
+        {
+            var d   = from.AddDays(offset);
+            var rev = raw.FirstOrDefault(r => r.Date == d)?.Total ?? 0;
+            return new { label = d.ToString("dd/MM"), value = Math.Round(rev / 1_000_000m, 2) };
+        }).ToList();
+
+        return Ok(result);
+    }
 }
 
 public record CollectDto(string Method);

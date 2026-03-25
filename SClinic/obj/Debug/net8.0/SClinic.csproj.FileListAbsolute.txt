@@ -141,3 +141,9 @@ D:\FPT\Spring 2026\Block2\NET202\ASM\SClinic\obj\Debug\net8.0\ref\SClinic.dll
 D:\FPT\Spring 2026\Block2\NET202\ASM\SClinic\bin\Debug\net8.0\BouncyCastle.Cryptography.dll
 D:\FPT\Spring 2026\Block2\NET202\ASM\SClinic\bin\Debug\net8.0\MailKit.dll
 D:\FPT\Spring 2026\Block2\NET202\ASM\SClinic\bin\Debug\net8.0\MimeKit.dll
+D:\FPT\Spring 2026\Block2\NET202\ASM\SClinic\bin\Debug\net8.0\Microsoft.OpenApi.dll
+D:\FPT\Spring 2026\Block2\NET202\ASM\SClinic\bin\Debug\net8.0\Swashbuckle.AspNetCore.Swagger.dll
+D:\FPT\Spring 2026\Block2\NET202\ASM\SClinic\bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerGen.dll
+D:\FPT\Spring 2026\Block2\NET202\ASM\SClinic\bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerUI.dll
+D:\FPT\Spring 2026\Block2\NET202\ASM\SClinic\obj\Debug\net8.0\SClinic.MvcApplicationPartsAssemblyInfo.cs
+D:\FPT\Spring 2026\Block2\NET202\ASM\SClinic\obj\Debug\net8.0\SClinic.sourcelink.json

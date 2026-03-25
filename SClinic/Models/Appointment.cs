@@ -19,6 +19,8 @@ public class Appointment
     public int PatientId { get; set; }
     public int ScheduleId { get; set; }
     public int? PatientTreatmentId { get; set; }
+    public int? ServiceId { get; set; }           // Bug #1 fix: track which service was booked
+    public string? Notes { get; set; }             // Bug #9 fix: patient notes/requests
     public AppointmentStatus Status { get; set; } = AppointmentStatus.Pending;
 
     // Navigation

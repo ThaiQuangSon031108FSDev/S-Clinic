@@ -15,6 +15,7 @@ public class Medicine
 
     public int StockQuantity { get; set; } = 0;
     public decimal Price { get; set; }
+    public bool IsDeleted { get; set; } = false;   // Bug #14: soft delete
 
     // Navigation
     [ForeignKey(nameof(CategoryId))]

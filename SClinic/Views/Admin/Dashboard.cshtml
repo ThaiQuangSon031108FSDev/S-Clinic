@@ -38,10 +38,10 @@
     <!-- Revenue Chart -->
     <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col relative">
         <div class="flex justify-between items-center mb-6">
-            <h3 class="text-lg font-bold text-slate-800">Doanh thu 7 ngày gần nhất</h3>
-            <select class="border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none">
-                <option>Tuần này</option>
-                <option>Tháng này</option>
+            <h3 class="text-lg font-bold text-slate-800" id="chart-title">Doanh thu 7 ngày gần nhất</h3>
+            <select id="range-select" class="border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none">
+                <option value="week">Tuần này</option>
+                <option value="month">Tháng này</option>
             </select>
         </div>
         <div class="flex-1 w-full min-h-[300px]">
@@ -193,17 +193,20 @@
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const ctx = document.getElementById('revenueChart');
-            if (ctx) {
-                new Chart(ctx, {
+            if (!ctx) return;
+
+            let chartInstance = null;
+
+            const buildChart = (labels, values) => {
+                if (chartInstance) chartInstance.destroy();
+                chartInstance = new Chart(ctx, {
                     type: 'bar',
                     data: {
-                        labels: ['T5', 'T6', 'T7', 'CN', 'T2', 'T3', 'Hôm nay'],
+                        labels,
                         datasets: [{
                             label: 'Doanh Thu (triệu VNĐ)',
-                            data: [3.2, 6.5, 9.1, 14.2, 2.5, 11.8, @(todayRevenue / 1000000)],
-                            backgroundColor: [
-                                '#99f6e4', '#99f6e4', '#99f6e4', '#0d9488', '#99f6e4', '#99f6e4', '#0f766e'
-                            ],
+                            data: values,
+                            backgroundColor: values.map((_, i) => i === values.length - 1 ? '#0f766e' : '#99f6e4'),
                             borderRadius: 6,
                             borderSkipped: false,
                             barPercentage: 0.6
@@ -217,32 +220,36 @@
                             tooltip: {
                                 backgroundColor: '#1e293b',
                                 padding: 12,
-                                titleFont: { size: 14, family: "'Inter', sans-serif" },
-                                bodyFont: { size: 14, weight: 'bold', family: "'Inter', sans-serif" },
                                 displayColors: false,
-                                callbacks: {
-                                    label: function(context) {
-                                        return context.raw.toLocaleString() + ' Triệu VNĐ';
-                                    }
-                                }
+                                callbacks: { label: c => c.raw.toLocaleString() + ' Triệu VNĐ' }
                             }
                         },
                         scales: {
-                            y: {
-                                beginAtZero: true,
-                                border: { display: false },
-                                grid: { color: '#f1f5f9', drawTicks: false },
-                                ticks: { color: '#64748b', font: { family: "'Inter', sans-serif" }, padding: 10 }
-                            },
-                            x: {
-                                border: { display: false },
-                                grid: { display: false },
-                                ticks: { color: '#64748b', font: { family: "'Inter', sans-serif", weight: 'bold' } }
-                            }
+                            y: { beginAtZero: true, border: { display: false }, grid: { color: '#f1f5f9', drawTicks: false }, ticks: { color: '#64748b', padding: 10 } },
+                            x: { border: { display: false }, grid: { display: false }, ticks: { color: '#64748b', font: { weight: 'bold' } } }
                         }
                     }
                 });
-            }
+            };
+
+            const loadChart = async (range) => {
+                try {
+                    const res  = await fetch(`/api/invoicesapi/revenue-chart?range=${range}`);
+                    const data = await res.json();
+                    const labels = data.map(d => d.label);
+                    const values = data.map(d => d.value);
+                    buildChart(labels, values);
+                    document.getElementById('chart-title').textContent =
+                        range === 'month' ? 'Doanh thu 30 ngày gần nhất' : 'Doanh thu 7 ngày gần nhất';
+                } catch {
+                    // Fallback to static data if API fails
+                    buildChart(['T5','T6','T7','CN','T2','T3','Hôm nay'],
+                               [3.2, 6.5, 9.1, 14.2, 2.5, 11.8, @(todayRevenue / 1000000)]);
+                }
+            };
+
+            document.getElementById('range-select').addEventListener('change', e => loadChart(e.target.value));
+            loadChart('week');
         });
     </script>
 }

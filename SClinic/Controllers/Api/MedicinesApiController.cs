@@ -16,6 +16,7 @@ public class MedicinesApiController(ApplicationDbContext db) : ControllerBase
     {
         var list = await db.Medicines
             .Include(m => m.Category)
+            .Where(m => !m.IsDeleted)
             .OrderBy(m => m.MedicineName)
             .Select(m => new
             {
@@ -91,6 +92,17 @@ public class MedicinesApiController(ApplicationDbContext db) : ControllerBase
         med.StockQuantity += dto.Qty;
         await db.SaveChangesAsync();
         return Ok(new { id, newStock = med.StockQuantity });
+    }
+
+    // DELETE api/medicinesapi/{id} — soft delete (Bug #14)
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var med = await db.Medicines.FindAsync(id);
+        if (med is null) return NotFound();
+        med.IsDeleted = true;
+        await db.SaveChangesAsync();
+        return Ok(new { success = true });
     }
 }
 

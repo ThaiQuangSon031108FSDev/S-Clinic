@@ -37,55 +37,64 @@ public class PatientController(ApplicationDbContext db, IBookingService booking,
         if (patient is null)
             return Json(new { success = false, message = "Không tìm thấy hồ sơ bệnh nhân." });
 
-        // Parse date & time
+        // Validate past date
         if (!DateOnly.TryParse(req.Date, out var workDate))
             return Json(new { success = false, message = "Ngày không hợp lệ." });
+        if (workDate < DateOnly.FromDateTime(DateTime.Today))
+            return Json(new { success = false, message = "Không thể đặt lịch ngày đã qua." });
         if (!TimeOnly.TryParse(req.Time, out var timeSlot))
             return Json(new { success = false, message = "Giờ không hợp lệ." });
 
-        // Auto-assign doctor if doctorId = 0
-        var doctorId = req.DoctorId;
+        int doctorId = req.DoctorId;
+
+        // Bug #2 FIX: Auto-assign — find first doctor with an OPEN slot at this time
         if (doctorId <= 0)
         {
-            var ids = await db.Doctors.Select(d => d.DoctorId).ToListAsync();
-            if (!ids.Any())
-                return Json(new { success = false, message = "Hiện chưa có bác sĩ. Vui lòng liên hệ phòng khám." });
-            doctorId = ids[new Random().Next(ids.Count)];
+            var busyDoctorIds = await db.Appointments
+                .Where(a => a.Schedule.WorkDate == workDate
+                         && a.Schedule.TimeSlot == timeSlot
+                         && a.Status != AppointmentStatus.Cancelled)
+                .Select(a => a.Schedule.DoctorId)
+                .Distinct()
+                .ToListAsync();
+
+            var availableDoctor = await db.DoctorSchedules
+                .Where(s => s.WorkDate == workDate
+                         && s.TimeSlot == timeSlot
+                         && !busyDoctorIds.Contains(s.DoctorId))
+                .Select(s => s.DoctorId)
+                .FirstOrDefaultAsync();
+
+            if (availableDoctor == 0)
+                return Json(new { success = false, message = "Tất cả bác sĩ đã kín lịch cho khung giờ này. Vui lòng chọn giờ khác." });
+
+            doctorId = availableDoctor;
         }
 
-        // Find or create doctor schedule slot
+        // Bug #3 FIX: Do NOT auto-create schedule — only use existing open slots
         var schedule = await db.DoctorSchedules
             .FirstOrDefaultAsync(s => s.DoctorId == doctorId
                                    && s.WorkDate  == workDate
                                    && s.TimeSlot  == timeSlot);
 
         if (schedule is null)
-        {
-            schedule = new DoctorSchedule
-            {
-                DoctorId = doctorId,
-                WorkDate = workDate,
-                TimeSlot = timeSlot,
-            };
-            db.DoctorSchedules.Add(schedule);
-            await db.SaveChangesAsync();
-        }
-        else
-        {
-            // Check if slot already booked
-            var taken = await db.Appointments.AnyAsync(a =>
-                a.ScheduleId == schedule.ScheduleId &&
-                a.Status != AppointmentStatus.Cancelled);
-            if (taken)
-                return Json(new { success = false, message = "Khung giờ này đã có người đặt. Vui lòng chọn giờ khác." });
-        }
+            return Json(new { success = false, message = "Bác sĩ không có ca làm việc vào khung giờ này. Vui lòng chọn giờ khác." });
 
+        // Check slot not already taken
+        var taken = await db.Appointments.AnyAsync(a =>
+            a.ScheduleId == schedule.ScheduleId &&
+            a.Status != AppointmentStatus.Cancelled);
+        if (taken)
+            return Json(new { success = false, message = "Khung giờ này đã có người đặt. Vui lòng chọn giờ khác." });
+
+        // Bug #1 + #9 FIX: Save ServiceId and Notes
         var appt = new Appointment
         {
             PatientId  = patient.PatientId,
             ScheduleId = schedule.ScheduleId,
+            ServiceId  = req.ServiceId > 0 ? req.ServiceId : null,
+            Notes      = req.Note?.Trim(),
             Status     = AppointmentStatus.Pending,
-            // Notes field not in model — store note in MedicalRecord if needed
         };
         db.Appointments.Add(appt);
         await db.SaveChangesAsync();

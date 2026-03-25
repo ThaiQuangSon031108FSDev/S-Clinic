@@ -363,72 +363,70 @@
                 <p class="text-slate-600">Thiết kế cá nhân hóa cho từng tình trạng da cụ thể.</p>
             </div>
 
+            @{
+                var dbServices = ViewBag.Services as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
+                var useDb      = dbServices.Any();
+                // Fallback static data for demo if DB empty
+                var staticCards = new[] {
+                    new { Id=0, Name="Khám & Soi Da",             Desc="Dành cho khách hàng mới",       Price=499000m,    Unit="lượt",    Icon="🏥", Badge="",           IsPrimary=false },
+                    new { Id=0, Name="Liệu trình Trị mụn Y khoa", Desc="Phục hồi nền da thương tổn",    Price=5500000m,   Unit="5 buổi",  Icon="✨", Badge="Best Seller", IsPrimary=true  },
+                    new { Id=0, Name="Nâng cơ Ultra Therapy",      Desc="Trẻ hoá công nghệ cao",         Price=12900000m,  Unit="buổi",    Icon="💎", Badge="Premium",     IsPrimary=false },
+                };
+            }
+
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto" id="pricing-grid">
 
-                <!-- Card 1 -->
-                <div class="gsap-stagger bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:-translate-y-2 hover:shadow-xl transition-all duration-300 flex flex-col">
-                    <div class="flex-1">
-                        <h3 class="text-xl font-bold text-slate-900">Khám & Soi Da</h3>
-                        <p class="text-sm text-slate-500 mt-2 mb-6">Dành cho khách hàng mới</p>
-                        <div class="text-4xl font-extrabold text-slate-900 mb-6">
-                            499.000đ<span class="text-base font-normal text-slate-500"> / lượt</span>
+            @if (useDb)
+            {
+                // ── REAL DB SERVICES ──────────────────────────────────────────
+                int idx = 0;
+                foreach (var svc in dbServices)
+                {
+                    bool isPrimary = (idx == 1);
+                    <div class="gsap-stagger bg-white p-8 rounded-3xl @(isPrimary ? "border-2 border-brand-primary shadow-lg relative" : "border border-slate-100 shadow-sm hover:shadow-xl") transition-all duration-300 hover:-translate-y-2 flex flex-col">
+                        @if (isPrimary)
+                        {
+                            <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-brand-primary text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Best Seller</div>
+                        }
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-slate-900">@svc.ServiceName</h3>
+                            <p class="text-sm text-slate-500 mt-2 mb-6">Dịch vụ chuyên khoa da liễu</p>
+                            <div class="text-4xl font-extrabold text-slate-900 mb-6">
+                                @svc.Price.ToString("N0")đ<span class="text-base font-normal text-slate-500"> / lượt</span>
+                            </div>
                         </div>
-                        <ul class="space-y-3 mb-8 text-slate-600 text-sm">
-                            <li class="flex items-center gap-3"><span class="text-brand-primary font-bold">✔</span> Soi da 3D đa tầng phân tích chuyên sâu</li>
-                            <li class="flex items-center gap-3"><span class="text-brand-primary font-bold">✔</span> Bác sĩ tư vấn 1:1 trực tiếp</li>
-                            <li class="flex items-center gap-3"><span class="text-brand-primary font-bold">✔</span> Phân tích da toàn diện & lộ trình cá nhân</li>
-                        </ul>
+                        <a href="/Patient/Book?serviceId=@svc.ServiceId"
+                           class="w-full py-3 rounded-xl text-center font-bold transition-all block @(isPrimary ? "bg-brand-primary text-white hover:bg-brand-hover shadow-md" : "border-2 border-slate-200 text-slate-700 hover:border-brand-primary hover:text-brand-primary hover:bg-teal-50")">
+                            Xem chi tiết & Đặt lịch →
+                        </a>
                     </div>
-                    <button onclick="openServiceModal('kham-soi-da')"
-                            class="w-full py-3 rounded-xl border-2 border-slate-200 font-semibold text-slate-700 hover:border-brand-primary hover:text-brand-primary hover:bg-teal-50 transition-all">
-                        Xem chi tiết & Đặt lịch →
-                    </button>
-                </div>
-
-                <!-- Card 2 — Best Seller -->
-                <div class="gsap-stagger bg-white p-8 rounded-3xl border-2 border-brand-primary shadow-lg hover:-translate-y-2 transition-all duration-300 relative flex flex-col">
-                    <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-brand-primary text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-                        Best Seller
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="text-xl font-bold text-slate-900">Liệu trình Trị mụn Y khoa</h3>
-                        <p class="text-sm text-slate-500 mt-2 mb-6">Phục hồi nền da thương tổn</p>
-                        <div class="text-4xl font-extrabold text-slate-900 mb-6">
-                            5.500.000đ<span class="text-base font-normal text-slate-500"> / 5 buổi</span>
+                    idx++;
+                }
+            }
+            else
+            {
+                // ── FALLBACK STATIC CARDS ─────────────────────────────────────
+                foreach (var card in staticCards)
+                {
+                    <div class="gsap-stagger bg-white p-8 rounded-3xl @(card.IsPrimary ? "border-2 border-brand-primary shadow-lg relative" : "border border-slate-100 shadow-sm hover:shadow-xl") transition-all duration-300 hover:-translate-y-2 flex flex-col">
+                        @if (!string.IsNullOrEmpty(card.Badge))
+                        {
+                            <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-brand-primary text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">@card.Badge</div>
+                        }
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-slate-900">@card.Name</h3>
+                            <p class="text-sm text-slate-500 mt-2 mb-6">@card.Desc</p>
+                            <div class="text-4xl font-extrabold text-slate-900 mb-6">
+                                @card.Price.ToString("N0")đ<span class="text-base font-normal text-slate-500"> / @card.Unit</span>
+                            </div>
                         </div>
-                        <ul class="space-y-3 mb-8 text-slate-600 font-medium text-sm">
-                            <li class="flex items-center gap-3"><span class="text-brand-primary font-bold">✔</span> Lấy nhân mụn chuẩn y khoa vô trùng</li>
-                            <li class="flex items-center gap-3"><span class="text-brand-primary font-bold">✔</span> Chiếu ánh sáng sinh học LED</li>
-                            <li class="flex items-center gap-3"><span class="text-brand-primary font-bold">✔</span> Điện di Serum phục hồi chuyên sâu</li>
-                            <li class="flex items-center gap-3"><span class="text-brand-primary font-bold">✔</span> Theo dõi tiến triển sau mỗi buổi</li>
-                        </ul>
+                        <button onclick="openServiceModal('@card.Name.ToLower().Replace(" ", "-")')"
+                                class="w-full py-3 rounded-xl font-bold transition-all @(card.IsPrimary ? "bg-brand-primary text-white hover:bg-brand-hover shadow-md" : "border-2 border-slate-200 text-slate-700 hover:border-brand-primary hover:text-brand-primary hover:bg-teal-50")">
+                            Xem chi tiết & Đặt lịch →
+                        </button>
                     </div>
-                    <button onclick="openServiceModal('tri-mun-y-khoa')"
-                            class="w-full py-3 rounded-xl bg-brand-primary text-white font-bold hover:bg-brand-hover shadow-md active:scale-95 transition-all">
-                        Xem chi tiết & Đặt lịch →
-                    </button>
-                </div>
-
-                <!-- Card 3 — Premium -->
-                <div class="gsap-stagger bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:-translate-y-2 hover:shadow-xl transition-all duration-300 relative flex flex-col">
-                    <div class="absolute top-8 right-8 bg-amber-100 text-amber-700 px-3 py-1 rounded-md text-xs font-bold uppercase">Premium</div>
-                    <div class="flex-1">
-                        <h3 class="text-xl font-bold text-slate-900">Nâng cơ Ultra Therapy</h3>
-                        <p class="text-sm text-slate-500 mt-2 mb-6">Trẻ hoá công nghệ cao</p>
-                        <div class="text-4xl font-extrabold text-slate-900 mb-6">
-                            12.900.000đ<span class="text-base font-normal text-slate-500"> / buổi</span>
-                        </div>
-                        <ul class="space-y-3 mb-8 text-slate-600 text-sm">
-                            <li class="flex items-center gap-3"><span class="text-brand-primary font-bold">✔</span> Xoá nhăn không xâm lấn bằng sóng siêu âm</li>
-                            <li class="flex items-center gap-3"><span class="text-brand-primary font-bold">✔</span> Kích thích tăng sinh Collagen tự nhiên</li>
-                            <li class="flex items-center gap-3"><span class="text-brand-primary font-bold">✔</span> Nâng cơ mặt, xoá chảy xệ tức thì</li>
-                        </ul>
-                    </div>
-                    <button onclick="openServiceModal('nang-co-ultra')"
-                            class="w-full py-3 rounded-xl border-2 border-amber-200 font-semibold text-amber-700 hover:border-amber-400 hover:bg-amber-50 transition-all">
-                        Xem chi tiết & Liên hệ →
-                    </button>
-                </div>
+                }
+            }
 
             </div>
         </div>

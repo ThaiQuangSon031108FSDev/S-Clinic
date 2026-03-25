@@ -69,6 +69,33 @@ builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<OtpService>();
 builder.Services.AddSingleton<EmailService>();
 
+// ── Swagger (Bug #15: API testing for testers) ────────────────────────────
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title       = "S-Clinic API",
+        Version     = "v1",
+        Description = "API cho hệ thống quản lý phòng khám S-Clinic"
+    });
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        In          = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Nhập JWT token: Bearer {token}",
+        Name        = "Authorization",
+        Type        = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme      = "Bearer"
+    });
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {{
+        new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+        {
+            Reference = new Microsoft.OpenApi.Models.OpenApiReference
+            { Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme, Id = "Bearer" }
+        }, []
+    }});
+});
 
 // ── MVC + JSON ─────────────────────────────────────────────────────────────
 builder.Services.AddControllersWithViews()
@@ -94,6 +121,17 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
     app.UseHttpsRedirection();
+}
+
+// Bug #15: Swagger UI only in Development
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "S-Clinic API v1");
+        c.RoutePrefix = "swagger";
+    });
 }
 
 // ── Ensure UTF-8 charset on all JSON API responses (fixes garbled Vietnamese) ─
