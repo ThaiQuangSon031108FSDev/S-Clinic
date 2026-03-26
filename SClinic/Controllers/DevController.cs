@@ -117,4 +117,59 @@ public class DevController(ApplicationDbContext db, IWebHostEnvironment env) : C
         log.AppendLine("\n🎉 Hoàn tất! Reload lại các trang để kiểm tra font chữ.");
         return Content(log.ToString(), "text/plain; charset=utf-8");
     }
+
+    // ── GET /dev/seed-schedules ───────────────────────────────────────────────
+    // Tạo lịch làm việc cho 5 bác sĩ × 14 slot × 30 ngày tới
+    [HttpGet("seed-schedules")]
+    public async Task<IActionResult> SeedSchedules()
+    {
+        var doctors = await db.Doctors.Select(d => d.DoctorId).ToListAsync();
+        if (doctors.Count == 0)
+            return Content("❌ Chưa có bác sĩ trong DB. Gọi /dev/fix-encoding trước.", "text/plain; charset=utf-8");
+
+        var slots = new[]
+        {
+            new TimeOnly(8,0),  new TimeOnly(8,30),  new TimeOnly(9,0),
+            new TimeOnly(9,30), new TimeOnly(10,0),  new TimeOnly(10,30),
+            new TimeOnly(13,30),new TimeOnly(14,0),  new TimeOnly(14,30),
+            new TimeOnly(15,0), new TimeOnly(15,30),new TimeOnly(16,0),
+            new TimeOnly(16,30),new TimeOnly(17,0)
+        };
+
+        int added = 0;
+        var today = DateOnly.FromDateTime(DateTime.Today);
+
+        for (int day = 0; day <= 30; day++)
+        {
+            var date = today.AddDays(day);
+            // Skip Sunday (0)
+            if (date.DayOfWeek == DayOfWeek.Sunday) continue;
+
+            foreach (var doctorId in doctors)
+            {
+                foreach (var slot in slots)
+                {
+                    bool exists = await db.DoctorSchedules
+                        .AnyAsync(s => s.DoctorId == doctorId
+                                    && s.WorkDate  == date
+                                    && s.TimeSlot  == slot);
+                    if (!exists)
+                    {
+                        db.DoctorSchedules.Add(new DoctorSchedule
+                        {
+                            DoctorId      = doctorId,
+                            WorkDate      = date,
+                            TimeSlot      = slot,
+                            MaxPatients   = 3,
+                            CurrentBooked = 0
+                        });
+                        added++;
+                    }
+                }
+            }
+        }
+
+        await db.SaveChangesAsync();
+        return Content($"✅ Đã tạo {added} lịch làm việc cho {doctors.Count} bác sĩ trong 30 ngày tới.\n👉 Bệnh nhân có thể đặt lịch ngay!", "text/plain; charset=utf-8");
+    }
 }

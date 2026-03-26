@@ -158,20 +158,22 @@ public class DoctorApiController(ApplicationDbContext db, IWebHostEnvironment en
 
         await db.SaveChangesAsync();
 
-        // ── 5. Build invoice if items prescribed ─────────────────────────
+        // ── 5. Build invoice ALWAYS to signal Cashier that patient is done ──
+        var invoice = new Invoice
+        {
+            RecordId      = record.RecordId,
+            AppointmentId = req.AppointmentId,
+            PaymentStatus = PaymentStatus.Pending,
+            CreatedDate   = DateTime.Now,
+            TotalAmount   = 0,
+        };
+        db.Invoices.Add(invoice);
+        await db.SaveChangesAsync();
+
+        decimal total = 0;
+
         if (req.Items is { Count: > 0 })
         {
-            var invoice = new Invoice
-            {
-                RecordId      = record.RecordId,
-                PaymentStatus = PaymentStatus.Pending,
-                CreatedDate   = DateTime.Now,
-                TotalAmount   = 0,
-            };
-            db.Invoices.Add(invoice);
-            await db.SaveChangesAsync();
-
-            decimal total = 0;
             foreach (var item in req.Items)
             {
                 decimal unitPrice = 0;
@@ -202,10 +204,10 @@ public class DoctorApiController(ApplicationDbContext db, IWebHostEnvironment en
                     SubTotal   = subTotal,
                 });
             }
-
-            invoice.TotalAmount = total;
-            await db.SaveChangesAsync();
         }
+
+        invoice.TotalAmount = total;
+        await db.SaveChangesAsync();
 
         return Ok(new { success = true, recordId = record.RecordId });
     }

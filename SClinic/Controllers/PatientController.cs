@@ -44,46 +44,27 @@ public class PatientController(ApplicationDbContext db, IBookingService booking,
         if (!TimeOnly.TryParse(req.Time, out var timeSlot))
             return Json(new { success = false, message = "Giờ không hợp lệ." });
 
-        // ── Find or auto-create a schedule slot ──────────────────────────────
-        // 1. Try to find an existing open schedule for this date+time
+        // ── Auto-assign: tìm bác sĩ có lịch + còn chỗ trống ─────────────────
         var schedule = await db.DoctorSchedules
-            .FirstOrDefaultAsync(s => s.WorkDate == workDate
-                                   && s.TimeSlot  == timeSlot
-                                   && s.CurrentBooked < s.MaxPatients);
+            .Where(s => s.WorkDate == workDate
+                     && s.TimeSlot  == timeSlot
+                     && s.CurrentBooked < s.MaxPatients)
+            .OrderBy(s => s.CurrentBooked)   // ưu tiên bác sĩ ít khách nhất
+            .FirstOrDefaultAsync();
 
-        // 2. If none exists → auto-assign any doctor & create schedule on-the-fly
         if (schedule is null)
-        {
-            // Pick the doctor that has fewest bookings today (load balance)
-            var doctor = await db.Doctors
-                .OrderBy(d => db.DoctorSchedules
-                    .Where(s => s.DoctorId == d.DoctorId && s.WorkDate == workDate)
-                    .Sum(s => (int?)s.CurrentBooked) ?? 0)
-                .FirstOrDefaultAsync();
+            return Json(new { success = false,
+                message = "Không có bác sĩ nào có lịch trống vào khung giờ này. Vui lòng chọn ngày/giờ khác." });
 
-            if (doctor is null)
-                return Json(new { success = false, message = "Hiện không có bác sĩ nào trong hệ thống. Vui lòng liên hệ phòng khám." });
-
-            schedule = new DoctorSchedule
-            {
-                DoctorId       = doctor.DoctorId,
-                WorkDate       = workDate,
-                TimeSlot       = timeSlot,
-                MaxPatients    = 1,
-                CurrentBooked  = 0
-            };
-            db.DoctorSchedules.Add(schedule);
-            await db.SaveChangesAsync(); // get ScheduleId
-        }
-
-        // ── Check slot still available ────────────────────────────────────────
-        var taken = await db.Appointments.AnyAsync(a =>
+        // ── Kiểm tra chưa đặt trùng ──────────────────────────────────────────
+        var alreadyBooked = await db.Appointments.AnyAsync(a =>
+            a.PatientId  == patient.PatientId &&
             a.ScheduleId == schedule.ScheduleId &&
-            a.Status != AppointmentStatus.Cancelled);
-        if (taken)
-            return Json(new { success = false, message = "Khung giờ này vừa được đặt. Vui lòng chọn giờ khác." });
+            a.Status     != AppointmentStatus.Cancelled);
+        if (alreadyBooked)
+            return Json(new { success = false, message = "Bạn đã đặt lịch vào khung giờ này rồi." });
 
-        // ── Create appointment ────────────────────────────────────────────────
+        // ── Tạo lịch hẹn ─────────────────────────────────────────────────────
         var appt = new Appointment
         {
             PatientId  = patient.PatientId,
@@ -93,7 +74,6 @@ public class PatientController(ApplicationDbContext db, IBookingService booking,
             Status     = AppointmentStatus.Pending,
         };
         db.Appointments.Add(appt);
-
         schedule.CurrentBooked++;
         await db.SaveChangesAsync();
 

@@ -17,6 +17,10 @@ public class Invoice
 
     // Nullable: direct package/product sales may not have a MedicalRecord
     public int? RecordId { get; set; }
+
+    // Direct link to appointment (fallback when RecordId is null)
+    public int? AppointmentId { get; set; }
+
     public decimal TotalAmount { get; set; }
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Pending;
     public DateTime CreatedDate { get; set; } = DateTime.Now;
@@ -24,6 +28,9 @@ public class Invoice
     // Navigation
     [ForeignKey(nameof(RecordId))]
     public MedicalRecord? Record { get; set; }
+
+    [ForeignKey(nameof(AppointmentId))]
+    public Appointment? Appointment { get; set; }
 
     public ICollection<InvoiceDetail> InvoiceDetails { get; set; } = [];
 }

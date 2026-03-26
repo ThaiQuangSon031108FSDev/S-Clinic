@@ -18,6 +18,8 @@ public class InvoicesApiController(ApplicationDbContext db) : ControllerBase
             .Include(i => i.Record)
                 .ThenInclude(r => r.Appointment)
                     .ThenInclude(a => a.Patient)
+            .Include(i => i.Appointment)        // direct FK fallback
+                .ThenInclude(a => a!.Patient)
             .Include(i => i.InvoiceDetails)
                 .ThenInclude(d => d.Medicine)
             .Include(i => i.InvoiceDetails)
@@ -31,23 +33,35 @@ public class InvoicesApiController(ApplicationDbContext db) : ControllerBase
             .OrderByDescending(i => i.CreatedDate)
             .ToListAsync();
 
-        var result = list.Select(i => new
+        var result = list.Select(i =>
         {
-            i.InvoiceId,
-            i.TotalAmount,
-            PaymentStatus = i.PaymentStatus.ToString(),
-            CreatedDate   = i.CreatedDate.ToString("dd/MM/yyyy HH:mm"),
-            PatientName   = i.Record?.Appointment?.Patient?.FullName ?? "Chưa cập nhật",
-            ServiceName   = i.InvoiceDetails.FirstOrDefault(d => d.ItemType == InvoiceItemType.Service)?.Service?.ServiceName ?? "",
-            Details       = i.InvoiceDetails.Select(d => new
+            // PatientName: try Record chain first, then direct Appointment FK
+            var patientName = i.Record?.Appointment?.Patient?.FullName
+                           ?? i.Appointment?.Patient?.FullName
+                           ?? "Chưa cập nhật";
+
+            // ServiceName: try InvoiceDetails first, then look up service by Appointment.ServiceId
+            var serviceName = i.InvoiceDetails.FirstOrDefault(d => d.ItemType == InvoiceItemType.Service)?.Service?.ServiceName
+                           ?? "";
+
+            return new
             {
-                Name      = d.ItemType == InvoiceItemType.Medicine && d.Medicine != null ? d.Medicine.MedicineName
-                           : d.ItemType == InvoiceItemType.Service && d.Service  != null ? d.Service.ServiceName
-                           : "Dịch vụ/Thuốc",
-                d.Quantity,
-                d.UnitPrice,
-                Subtotal  = d.SubTotal
-            }).ToList()
+                i.InvoiceId,
+                i.TotalAmount,
+                PaymentStatus = i.PaymentStatus.ToString(),
+                CreatedDate   = i.CreatedDate.ToString("dd/MM/yyyy HH:mm"),
+                PatientName   = patientName,
+                ServiceName   = serviceName,
+                Details       = i.InvoiceDetails.Select(d => new
+                {
+                    Name      = d.ItemType == InvoiceItemType.Medicine && d.Medicine != null ? d.Medicine.MedicineName
+                               : d.ItemType == InvoiceItemType.Service && d.Service  != null ? d.Service.ServiceName
+                               : "Dịch vụ/Thuốc",
+                    d.Quantity,
+                    d.UnitPrice,
+                    Subtotal  = d.SubTotal
+                }).ToList()
+            };
         });
 
         return Ok(result);
@@ -71,8 +85,15 @@ public class InvoicesApiController(ApplicationDbContext db) : ControllerBase
     [HttpPost("create-from-appointment")]
     public async Task<IActionResult> CreateFromAppointment([FromBody] CreateFromApptDto dto)
     {
+        // Prevent duplicate invoice for same appointment
+        var existing = await db.Invoices
+            .FirstOrDefaultAsync(i => i.AppointmentId == dto.AppointmentId);
+        if (existing is not null)
+            return Ok(new { existing.InvoiceId });
+
         var invoice = new Invoice
         {
+            AppointmentId = dto.AppointmentId,
             RecordId      = null,
             TotalAmount   = 0,
             PaymentStatus = PaymentStatus.Pending,

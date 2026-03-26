@@ -4,6 +4,24 @@
 }
 
 <div id="app">
+    <!-- Check-in box -->
+    <div class="bg-white border border-teal-200 rounded-2xl px-5 py-4 mb-5 flex items-center gap-4 shadow-sm">
+        <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl flex-shrink-0">📋</div>
+        <div class="flex-1">
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Check-in bệnh nhân</p>
+            <div class="flex gap-2">
+                <input v-model="checkinCode" type="text" placeholder="Nhập mã APT-0020 hoặc SĐT..."
+                       @@keyup.enter="doCheckin"
+                       class="flex-1 text-sm border border-slate-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-brand-primary focus:outline-none font-mono" />
+                <button @@click="doCheckin" :disabled="!checkinCode.trim()"
+                        class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-40">
+                    📣 Gọi vào
+                </button>
+            </div>
+            <p v-if="checkinMsg" :class="checkinOk ? 'text-teal-700' : 'text-red-600'" class="text-xs font-semibold mt-1.5">{{ checkinMsg }}</p>
+        </div>
+    </div>
+
     <!-- Subheader tabs -->
     <div class="flex gap-3 mb-6">
         <button @@click="view='kanban'" :class="view==='kanban'?'bg-brand-primary text-white shadow-md':'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'"
@@ -60,11 +78,10 @@
                     <span class="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded">[[ p.room ]]</span>
                     <h4 class="font-bold text-slate-900 mt-2">[[ p.name ]]</h4>
                     <p class="text-sm text-amber-600 font-medium mt-1">[[ p.service ]]</p>
-                    <p class="text-xs text-slate-400 mt-3 animate-pulse">BS. đang chẩn đoán...</p>
-                    <button @@click="moveToCashier(p)"
-                            class="mt-3 w-full bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white py-2 rounded-lg text-xs font-semibold transition-colors">
-                        💵 Chuyển Chờ Thu Ngân
-                    </button>
+                    <p class="text-xs text-slate-400 mt-3 flex items-center gap-1.5"><span class="animate-pulse w-2 h-2 bg-amber-400 rounded-full inline-block"></span> BS. đang chẩn đoán...</p>
+                    <div class="mt-3 w-full bg-slate-50 border border-slate-100/60 text-slate-400 text-center py-1.5 rounded-lg text-[10px] font-medium leading-tight">
+                        Sẽ tự chuyển sang Chờ Thu Ngân <br/>khi Bác Sĩ hoàn tất
+                    </div>
                 </div>
                 <div v-if="!activeList.length" class="text-center text-slate-400 text-sm py-8">Chưa có bệnh nhân</div>
             </div>
@@ -161,6 +178,11 @@ createApp({
         const search = ref('');
         const loading = ref(true);
 
+        // Checkin states
+        const checkinCode = ref('');
+        const checkinMsg  = ref('');
+        const checkinOk   = ref(false);
+
         // Real data from DB
         const allPatients = ref([]);
         const pendingInvoices = ref([]);
@@ -178,27 +200,31 @@ createApp({
                     phone:   a.patientPhone,
                     time:    a.time,
                     date:    a.date,
-                    service: a.status,   // no service field in appointment yet, show status
+                    service: '',
                     doctor:  a.doctorName,
                     room:    '',
                     amount:  '',
-                    status:  a.status === 'Pending'   ? 'pending'  :
-                             a.status === 'Confirmed' ? 'active'   :
-                             a.status === 'Completed' ? 'cashier'  : 'done' // legacy UI logic mapping
+                    status:  a.status === 'Pending'   ? 'pending'   :
+                             a.status === 'Confirmed' ? 'active'    :
+                             a.status === 'Completed' ? 'cashier'   : 'done'
                 }));
 
-                // Fetch Invoices exclusively for Cashier List
+                // Fetch Pending Invoices for cashier col
                 const resI = await fetch('/api/invoicesapi?status=Pending');
                 const dataI = await resI.json();
                 pendingInvoices.value = dataI;
-                
+
             } catch (e) {
                 console.error('Failed to load data', e);
             }
             loading.value = false;
         };
 
-        onMounted(loadData);
+        onMounted(() => {
+            loadData();
+            // Auto-refresh every 30s so receptionist sees doctor updates
+            setInterval(loadData, 30_000);
+        });
 
         const patchStatus = async (id, newStatus) => {
             await fetch(`/api/appointmentsapi/${id}/status`, {
@@ -210,11 +236,43 @@ createApp({
 
         const pendingList = computed(() => allPatients.value.filter(p => p.status === 'pending'));
         const activeList  = computed(() => allPatients.value.filter(p => p.status === 'active'));
-        const cashierList = computed(() => pendingInvoices.value);
+        // cashierList = Completed appointments (doctor done) + pending invoices merged
+        const cashierList = computed(() => {
+            const fromAppts = allPatients.value
+                .filter(p => p.status === 'cashier')
+                .map(p => ({ invoiceId: null, patientName: p.name, totalAmount: 0, paymentStatus: 'Pending', _apptId: p.id }));
+            // Merge: avoid duplicates if invoice already created for same patient
+            const invoiceNames = new Set(pendingInvoices.value.map(i => i.patientName));
+            const uniqueAppts  = fromAppts.filter(a => !invoiceNames.has(a.patientName));
+            return [...uniqueAppts, ...pendingInvoices.value];
+        });
         const filteredAll = computed(() => {
             const q = search.value.toLowerCase();
             return !q ? allPatients.value : allPatients.value.filter(p => p.name.toLowerCase().includes(q) || p.phone.includes(q));
         });
+
+        const doCheckin = async () => {
+            if (!checkinCode.value.trim()) return;
+            const code = checkinCode.value.trim().toLowerCase();
+            
+            // Tìm trong danh sách chờ (Pending) theo ID (APT-00X) hoặc số CĐ
+            const target = pendingList.value.find(p => 
+                `apt-${String(p.id).padStart(4,'0')}` === code || 
+                `#apt-${String(p.id).padStart(4,'0')}` === code || 
+                p.phone === code
+            );
+
+            if (target) {
+                await callIn(target);
+                checkinOk.value = true;
+                checkinMsg.value = `Đã check-in thành công cho BN ${target.name}!`;
+                checkinCode.value = '';
+                setTimeout(() => checkinMsg.value = '', 4000);
+            } else {
+                checkinOk.value = false;
+                checkinMsg.value = "Không tìm thấy bệnh nhân đang chờ với mã/SĐT này.";
+            }
+        };
 
         const callIn = async (p) => {
             p.room   = 'Phòng ' + Math.ceil(Math.random() * 3);
@@ -222,28 +280,10 @@ createApp({
             await patchStatus(p.id, 'Confirmed');
         };
         const moveToCashier = async (p) => {
-            // 1. Patch appointment status to Completed
-            await patchStatus(p.id, 'Completed');
-            // 2. Create a pending invoice & add to cashierList immediately
-            try {
-                const res = await fetch('/api/invoicesapi/create-from-appointment', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ appointmentId: p.id })
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    // Add to cashier list immediately without full reload
-                    pendingInvoices.value.push({
-                        invoiceId:   data.invoiceId,
-                        patientName: p.name,
-                        totalAmount: 0,
-                        items:       []
-                    });
-                }
-            } catch(e) { console.error(e); }
-            // 3. Remove from activeList
+            // Doctors now ALWAYS create an invoice internally via /complete-exam API
+            // So if a Receptionist clicks this manually, just force the frontend update
             p.status = 'done';
+            await loadData();
         };
 
         const payInvoice = async (inv) => {
@@ -265,7 +305,9 @@ createApp({
             paying.value = false;
         };
 
-        return { view, search, loading, allPatients, pendingList, activeList, cashierList, filteredAll, paying, callIn, moveToCashier, payInvoice };
+        return { view, search, loading, checkinCode, checkinMsg, checkinOk,
+                 allPatients, pendingList, activeList, cashierList, filteredAll, paying, 
+                 doCheckin, callIn, moveToCashier, payInvoice };
     }
 }).mount('#app');
 </script>

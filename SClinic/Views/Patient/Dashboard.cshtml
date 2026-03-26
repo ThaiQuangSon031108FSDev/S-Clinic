@@ -107,9 +107,15 @@
                             <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xl">⏰</div>
                             <div>
                                 @{
-                                    var next = appointments.Where(a => a.Status == SClinic.Models.AppointmentStatus.Confirmed)
-                                                           .OrderBy(a => a.Schedule?.WorkDate)
-                                                           .FirstOrDefault();
+                                    var today2 = DateOnly.FromDateTime(DateTime.Today);
+                                    var next = appointments
+                                        .Where(a => a.Schedule != null
+                                                 && a.Schedule.WorkDate >= today2
+                                                 && a.Status != SClinic.Models.AppointmentStatus.Cancelled
+                                                 && a.Status != SClinic.Models.AppointmentStatus.Completed)
+                                        .OrderBy(a => a.Schedule!.WorkDate)
+                                        .ThenBy(a => a.Schedule!.TimeSlot)
+                                        .FirstOrDefault();
                                 }
                                 @if (next != null)
                                 {
