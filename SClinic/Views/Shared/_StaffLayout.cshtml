@@ -82,13 +82,9 @@
                 <div class="px-6 py-2">
                     <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Lâm Sàng</p>
                     <nav class="space-y-1">
-                        <a asp-controller="Doctor" asp-action="Dashboard"
-                           class="@(pageTitle=="Khám bệnh"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
-                            🩺 Khám bệnh &amp; Kê đơn
-                        </a>
                         <a asp-controller="Doctor" asp-action="Schedule"
-                           class="@(pageTitle=="Lịch làm việc"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
-                            🗓 Lịch làm việc
+                           class="@(pageTitle=="Lịch làm việc"||pageTitle=="Phiếu Điều Trị"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
+                            🗓 Lịch & Khám bệnh
                         </a>
                     </nav>
                 </div>

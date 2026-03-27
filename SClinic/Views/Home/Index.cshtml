@@ -142,7 +142,7 @@
                 var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
                 var dashUrl = role switch {
                     "Patient"      => "/Patient/Dashboard",
-                    "Doctor"       => "/Doctor/Dashboard",
+                    "Doctor"       => "/Doctor/Schedule",
                     "Receptionist" => "/Receptionist/Dashboard",
                     "Admin"        => "/Admin/Dashboard",
                     "Cashier"      => "/Admin/Finance",
@@ -395,10 +395,10 @@
                                 @svc.Price.ToString("N0")đ<span class="text-base font-normal text-slate-500"> / lượt</span>
                             </div>
                         </div>
-                        <a href="/Patient/Book?serviceId=@svc.ServiceId"
-                           class="w-full py-3 rounded-xl text-center font-bold transition-all block @(isPrimary ? "bg-brand-primary text-white hover:bg-brand-hover shadow-md" : "border-2 border-slate-200 text-slate-700 hover:border-brand-primary hover:text-brand-primary hover:bg-teal-50")">
+                        <button onclick="openRealServiceModal(@svc.ServiceId, '@svc.ServiceName', '@svc.Price.ToString("N0")')"
+                                class="w-full py-3 rounded-xl text-center font-bold transition-all block @(isPrimary ? "bg-brand-primary text-white hover:bg-brand-hover shadow-md" : "border-2 border-slate-200 text-slate-700 hover:border-brand-primary hover:text-brand-primary hover:bg-teal-50")">
                             Xem chi tiết & Đặt lịch →
-                        </a>
+                        </button>
                     </div>
                     idx++;
                 }
@@ -728,15 +728,42 @@ const SERVICES = {
     }
 };
 
+window.openRealServiceModal = function(id, name, priceStr) {
+    const s = {
+        name: name,
+        price: priceStr + 'đ / lượt',
+        tag: 'Dịch vụ Cơ bản',
+        tagColor: 'bg-teal-100 text-brand-primary',
+        duration: 'Trực tiếp tại phòng khám',
+        for: 'Mọi đối tượng (Bác sĩ chỉ định)',
+        steps: [
+            '1. Bác sĩ thăm khám, soi da (nếu cần)',
+            '2. Tư vấn phác đồ phù hợp',
+            '3. Tiến hành thủ thuật/điều trị vô trùng',
+            '4. Phục hồi và hướng dẫn chăm sóc',
+            '5. Theo dõi kết quả sau liệu trình'
+        ],
+        bookId: id,
+        cta: 'Đặt lịch ngay',
+        ctaClass: 'bg-brand-primary text-white hover:bg-brand-hover'
+    };
+    renderModal(s);
+};
+
 window.openServiceModal = function(key) {
     const s = SERVICES[key];
     if (!s) return;
+    s.bookId = 0; // fallback has NO valid ID, it will just go to empty form
+    renderModal(s);
+};
 
-    const bookUrl = `/Account/Login?returnUrl=/Patient/Book?service=${encodeURIComponent(s.bookKey)}`;
+function renderModal(s) {
+
+    const bookUrl = `/Account/Login?returnUrl=/Patient/Book?serviceId=${s.bookId}`;
     const isAuthenticated = @(User.Identity?.IsAuthenticated == true ? "true" : "false");
     const role = '@(User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "")';
     const finalUrl = isAuthenticated && role === 'Patient'
-        ? `/Patient/Book?service=${encodeURIComponent(s.bookKey)}`
+        ? `/Patient/Book?serviceId=${s.bookId}`
         : bookUrl;
 
     document.getElementById('modal-content').innerHTML = `
@@ -783,7 +810,7 @@ window.openServiceModal = function(key) {
     `;
     document.getElementById('service-modal').classList.add('open');
     document.body.style.overflow = 'hidden';
-};
+}
 
 window.closeServiceModal = function() {
     document.getElementById('service-modal').classList.remove('open');

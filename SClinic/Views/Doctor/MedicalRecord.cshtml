@@ -1,7 +1,363 @@
 @{
-    ViewData["Title"] = "Medical Record";
+    ViewData["Title"] = "Phiếu Điều Trị";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+    var aptId = (int)ViewBag.AppointmentId;
 }
-<div id="app">
-    <medical-record-form :appointment-id="@ViewBag.AppointmentId"></medical-record-form>
+
+<div id="app" class="max-w-5xl mx-auto space-y-5">
+
+    <!-- Loading -->
+    <div v-if="loading" class="flex items-center justify-center py-24">
+        <div class="w-10 h-10 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
+        <span class="ml-4 text-slate-500 font-medium text-lg">Đang tải phiếu điều trị...</span>
+    </div>
+
+    <template v-else>
+        <!-- Breadcrumb -->
+        <div class="flex items-center gap-2 text-sm text-slate-400">
+            <a href="/Doctor/Schedule" class="hover:text-brand-primary transition-colors">← Lịch làm việc</a>
+            <span>/</span>
+            <span class="text-slate-700 font-semibold">[[ appt.patientName ]]</span>
+        </div>
+
+        <!-- ── PATIENT INFO CARD ── -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div class="flex items-start gap-5">
+                <div class="w-14 h-14 rounded-2xl bg-brand-primary/10 text-brand-primary flex items-center justify-center font-extrabold text-2xl flex-shrink-0">
+                    [[ appt.patientName?.[0] ?? '?' ]]
+                </div>
+                <div class="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div><p class="label-xs">Họ tên</p><p class="font-bold text-slate-900">[[ appt.patientName ]]</p></div>
+                    <div><p class="label-xs">SĐT</p><p class="text-slate-700">[[ appt.patientPhone ?? '—' ]]</p></div>
+                    <div><p class="label-xs">Ngày sinh</p><p class="text-slate-700">[[ appt.dob ?? '—' ]]</p></div>
+                    <div><p class="label-xs">Giờ hẹn</p><p class="text-slate-700">[[ appt.timeSlot ]] · [[ appt.workDate ]]</p></div>
+                </div>
+                <div :class="appt.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'"
+                     class="text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
+                    [[ appt.status === 'Completed' ? '✓ Đã hoàn tất' : appt.isPackage ? '📦 Liệu trình' : '🔬 Dịch vụ lẻ' ]]
+                </div>
+            </div>
+
+            <!-- Allergy alert -->
+            <div v-if="appt.medHistory" class="mt-4 bg-red-50 border border-red-100 rounded-xl p-3 flex gap-3">
+                <span class="text-red-500">⚠️</span>
+                <div>
+                    <p class="text-xs font-bold text-red-600 uppercase tracking-wider mb-0.5">Tiền sử / Dị ứng</p>
+                    <p class="text-sm text-red-700">[[ appt.medHistory ]]</p>
+                </div>
+            </div>
+
+            <!-- Context banner -->
+            <div class="mt-4 rounded-xl p-4"
+                 :class="appt.isPackage ? 'bg-teal-50 border border-teal-100' : 'bg-indigo-50 border border-indigo-100'">
+                <template v-if="appt.isPackage">
+                    <p class="text-xs font-bold text-teal-600 uppercase tracking-wider mb-2">📦 Gói liệu trình</p>
+                    <div class="flex items-center gap-5">
+                        <p class="font-bold text-teal-800">[[ appt.packageName ]]</p>
+                        <p class="text-teal-700">Buổi <strong>[[ appt.currentSession + 1 ]]</strong> / [[ appt.totalSessions ]]</p>
+                        <div class="flex-1 bg-teal-100 rounded-full h-2.5 overflow-hidden">
+                            <div class="bg-teal-500 h-2.5 rounded-full" :style="{ width: ((appt.currentSession / appt.totalSessions) * 100) + '%' }"></div>
+                        </div>
+                        <span v-if="appt.currentSession + 1 >= appt.totalSessions"
+                              class="text-xs bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full">Buổi cuối</span>
+                    </div>
+                </template>
+                <template v-else>
+                    <p class="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1">🔬 Dịch vụ đặt lịch</p>
+                    <p class="font-bold text-indigo-800">[[ appt.serviceName ?? 'Chưa chọn dịch vụ' ]]</p>
+                </template>
+            </div>
+        </div>
+
+        <!-- Main grid: form + prescription -->
+        <div :class="{ 'opacity-60 pointer-events-none': appt.status === 'Completed' }"
+             class="grid grid-cols-1 lg:grid-cols-5 gap-5">
+
+            <!-- ── LEFT: Clinical notes (3/5) ── -->
+            <div class="lg:col-span-3 space-y-5">
+
+                <!-- Photo upload -->
+                <div v-if="appt.isPackage || appt.serviceType === 2" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-5 py-3 border-b border-slate-100 bg-slate-50/60">
+                        <h3 class="font-bold text-slate-700 text-sm">📷 Ảnh Before / After</h3>
+                    </div>
+                    <div class="p-5 grid grid-cols-2 gap-4">
+                        <!-- Before -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-2 uppercase">📸 Before</label>
+                            <div class="border-2 border-dashed border-slate-200 rounded-xl p-3 text-center hover:border-brand-primary transition-colors cursor-pointer"
+                                 @@click="$refs.fileBefore.click()">
+                                <img v-if="previewBefore" :src="previewBefore" class="max-h-36 mx-auto rounded-lg object-cover" />
+                                <div v-else class="py-3">
+                                    <p class="text-2xl mb-1">📷</p>
+                                    <p class="text-xs text-slate-400">Click để chọn</p>
+                                </div>
+                            </div>
+                            <input ref="fileBefore" type="file" accept="image/*" class="hidden" @@change="onFile($event,'before')" />
+                        </div>
+                        <!-- After -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-2 uppercase">✨ After</label>
+                            <div class="border-2 border-dashed border-slate-200 rounded-xl p-3 text-center hover:border-brand-primary transition-colors cursor-pointer"
+                                 @@click="$refs.fileAfter.click()">
+                                <img v-if="previewAfter" :src="previewAfter" class="max-h-36 mx-auto rounded-lg object-cover" />
+                                <div v-else class="py-3">
+                                    <p class="text-2xl mb-1">✨</p>
+                                    <p class="text-xs text-slate-400">Click để chọn</p>
+                                </div>
+                            </div>
+                            <input ref="fileAfter" type="file" accept="image/*" class="hidden" @@change="onFile($event,'after')" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Diagnosis (Consultation only) -->
+                <div v-if="!appt.isPackage && appt.serviceType !== 2"
+                     class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-5 py-3 border-b border-slate-100 bg-slate-50/60">
+                        <h3 class="font-bold text-slate-700 text-sm">🔍 Chẩn đoán <span class="text-red-500">*</span></h3>
+                    </div>
+                    <div class="p-5">
+                        <textarea v-model="form.diagnosis" rows="4"
+                                  placeholder="Kết luận chẩn đoán của bác sĩ..."
+                                  class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none resize-none"></textarea>
+                    </div>
+                </div>
+
+                <!-- Treatment Notes -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-5 py-3 border-b border-slate-100 bg-slate-50/60">
+                        <h3 class="font-bold text-slate-700 text-sm">📝 Ghi chú điều trị</h3>
+                    </div>
+                    <div class="p-5">
+                        <textarea v-model="form.notes" rows="4"
+                                  :placeholder="appt.isPackage || appt.serviceType === 2
+                                    ? 'Phản ứng da, tình trạng sau làm, lưu ý chăm sóc...'
+                                    : 'Hướng dẫn sử dụng thuốc, dặn dò bệnh nhân...'"
+                                  class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none resize-none"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── RIGHT: Prescription table (2/5) ── -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden sticky top-4">
+                    <div class="px-5 py-3 border-b border-slate-100 bg-slate-50/60 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-700 text-sm">💊 Đơn thuốc / Chỉ định</h3>
+                        <span class="text-xs text-slate-400">[[ rxList.length ]] dòng</span>
+                    </div>
+
+                    <!-- Search add -->
+                    <div class="p-4 border-b border-slate-100">
+                        <div class="relative">
+                            <input v-model="rxSearch" type="text" placeholder="Tìm thuốc, dịch vụ..."
+                                   @@focus="rxFocus=true"
+                                   @@blur="setTimeout(()=>rxFocus=false, 200)"
+                                   class="w-full border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                            <span class="absolute right-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
+                        </div>
+                        <!-- Dropdown suggestions: show when typing OR show all if no input -->
+                        <div v-if="rxFocus && filteredInventory.length"
+                             class="mt-1 border border-slate-200 rounded-xl overflow-hidden shadow-lg max-h-52 overflow-y-auto z-10 relative bg-white">
+                            <div v-for="item in filteredInventory" :key="item.type+item.id"
+                                 @@click="addRx(item)"
+                                 class="flex items-center justify-between px-3 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-b-0">
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-medium text-slate-800 truncate">[[ item.name ]]</p>
+                                    <p class="text-[10px] text-slate-400 uppercase">
+                                        <span v-if="item.type === 'service'">🔬 Dịch vụ · [[ item.unit ]]</span>
+                                        <span v-else-if="item.category">💊 [[ item.category ]] · [[ item.unit ]]</span>
+                                        <span v-else>💊 Thuốc · [[ item.unit ]]</span>
+                                    </p>
+                                </div>
+                                <span class="text-xs font-bold text-brand-primary ml-2 whitespace-nowrap">[[ item.price.toLocaleString() ]]đ</span>
+                            </div>
+                        </div>
+                        <p v-else-if="rxSearch && !filteredInventory.length" class="text-xs text-slate-400 mt-1 px-1">Không tìm thấy kết quả.</p>
+                        <p v-else class="text-xs text-slate-400 mt-1 px-1">Gõ tên thuốc hoặc dịch vụ để tìm...</p>
+                    </div>
+
+                    <!-- Prescription lines -->
+                    <div class="divide-y divide-slate-100 max-h-64 overflow-y-auto">
+                        <div v-if="!rxList.length" class="py-6 text-center text-slate-400 text-sm">
+                            Chưa có mục nào
+                        </div>
+                        <div v-for="(rx, i) in rxList" :key="i" class="px-4 py-2.5 flex items-center gap-2">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-semibold text-slate-800 truncate">[[ rx.name ]]</p>
+                                <p class="text-[10px] text-slate-400">[[ (rx.price * rx.qty).toLocaleString() ]]đ</p>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <button @@click="rx.qty = Math.max(1, rx.qty - 1)"
+                                        class="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition-colors">−</button>
+                                <span class="w-6 text-center text-sm font-bold text-slate-700">[[ rx.qty ]]</span>
+                                <button @@click="rx.qty++"
+                                        class="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition-colors">+</button>
+                            </div>
+                            <button @@click="rxList.splice(i,1)" class="text-slate-300 hover:text-red-500 text-base transition-colors ml-1">✕</button>
+                        </div>
+                    </div>
+
+                    <!-- Total -->
+                    <div class="px-4 py-3 bg-slate-50/80 border-t border-slate-100">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-slate-500 uppercase">Tạm tính</span>
+                            <span class="font-extrabold text-brand-primary">[[ rxTotal.toLocaleString() ]]đ</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-0.5">+ phí dịch vụ đặt lịch</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SUBMIT BAR ── -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-4 flex justify-between items-center">
+            <div>
+                <p v-if="successMsg" class="text-emerald-700 bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-xl text-sm font-semibold">✅ [[ successMsg ]]</p>
+                <p v-if="errMsg"     class="text-red-600 bg-red-50 border border-red-100 px-4 py-2 rounded-xl text-sm font-medium">⚠️ [[ errMsg ]]</p>
+            </div>
+
+            <div class="flex gap-3 items-center">
+                <div v-if="appt.status === 'Completed'" class="flex items-center gap-2 text-green-700 font-bold text-sm">
+                    <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+                    Đã hoàn tất — chờ thu ngân
+                </div>
+                <template v-else>
+                    <p class="text-xs text-slate-500 mr-2">
+                        Tổng tạm tính: <strong class="text-slate-800">[[ rxTotal.toLocaleString() ]]đ</strong>
+                    </p>
+                    <button @@click="submit"
+                            :disabled="saving || isDisabled"
+                            class="px-7 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold transition-all shadow-md hover:bg-brand-hover active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed">
+                        <span v-if="saving">⏳ Đang lưu...</span>
+                        <span v-else>✅ Hoàn tất → Thu ngân</span>
+                    </button>
+                </template>
+            </div>
+        </div>
+    </template>
 </div>
-@section Scripts { <script type="module" src="~/js/doctor.js"></script> }
+
+<style>
+.label-xs {
+    font-size: 0.65rem; text-transform: uppercase;
+    letter-spacing: 0.05em; font-weight: 700;
+    color: #94a3b8; margin-bottom: 0.25rem;
+}
+</style>
+
+@section Scripts {
+<script>
+const { createApp, ref, computed, onMounted } = Vue;
+createApp({
+    delimiters: ['[[', ']]'],
+    setup() {
+        const appointmentId = @aptId;
+
+        const appt        = ref({});
+        const form        = ref({ diagnosis: '', notes: '' });
+        const inventory   = ref([]);
+        const rxList      = ref([]);   // prescription items
+        const rxSearch    = ref('');
+        const rxFocus     = ref(false);
+        const fileBefore  = ref(null);
+        const fileAfter   = ref(null);
+        const previewBefore = ref(null);
+        const previewAfter  = ref(null);
+        const loading     = ref(true);
+        const saving      = ref(false);
+        const successMsg  = ref('');
+        const errMsg      = ref('');
+
+        // Load appointment detail + inventory in parallel
+        onMounted(async () => {
+            const [resA, resI] = await Promise.all([
+                fetch(`/api/doctor/appointment-detail/${appointmentId}`),
+                fetch('/api/doctor/inventory'),
+            ]);
+            if (resA.ok) {
+                const d = await resA.json();
+                appt.value = d;
+                form.value.diagnosis = d.diagnosis ?? '';
+                form.value.notes     = d.skinCondition ?? '';
+            } else {
+                errMsg.value = 'Không tải được dữ liệu lịch hẹn.';
+            }
+            if (resI.ok) inventory.value = await resI.json();
+            loading.value = false;
+        });
+
+        // Filter inventory by search — show all (max 20) when empty
+        const filteredInventory = computed(() => {
+            const q = rxSearch.value.trim().toLowerCase();
+            if (!q) return inventory.value.slice(0, 20); // show first 20 when no search
+            return inventory.value.filter(i => i.name.toLowerCase().includes(q)).slice(0, 15);
+        });
+
+        const addRx = (item) => {
+            const existing = rxList.value.find(r => r.id === item.id && r.type === item.type);
+            if (existing) { existing.qty++; }
+            else rxList.value.push({ ...item, qty: 1 });
+            rxSearch.value = '';
+        };
+
+        const rxTotal = computed(() =>
+            rxList.value.reduce((sum, r) => sum + r.price * r.qty, 0));
+
+        const isDisabled = computed(() => {
+            if (!appt.value.isPackage && appt.value.serviceType !== 2)
+                return !form.value.diagnosis.trim();
+            return false;
+        });
+
+        const onFile = (e, side) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            if (side === 'before') { fileBefore.value = file; previewBefore.value = url; }
+            else                   { fileAfter.value  = file; previewAfter.value  = url; }
+        };
+
+        const submit = async () => {
+            saving.value = true; errMsg.value = ''; successMsg.value = '';
+
+            const fd = new FormData();
+            const combined = [form.value.diagnosis, form.value.notes].filter(Boolean).join('\n---\n');
+            fd.append('notes', combined);
+
+            // Serialize prescription items to JSON
+            const items = rxList.value.map(r => ({
+                type:       r.type,
+                medicineId: r.type === 'medicine' ? r.id : null,
+                serviceId:  r.type === 'service'  ? r.id : null,
+                qty:        r.qty,
+            }));
+            fd.append('prescriptionJson', JSON.stringify(items));
+
+            if (fileBefore.value) fd.append('imageBefore', fileBefore.value);
+            if (fileAfter.value)  fd.append('imageAfter',  fileAfter.value);
+
+            try {
+                const res  = await fetch(`/api/doctor/complete-session/${appointmentId}`, { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.success) {
+                    successMsg.value = data.message;
+                    appt.value.status = 'Completed';
+                    setTimeout(() => window.location.href = '/Doctor/Schedule', 1800);
+                } else {
+                    errMsg.value = data.message ?? 'Lỗi không xác định.';
+                }
+            } catch {
+                errMsg.value = 'Lỗi kết nối server.';
+            }
+            saving.value = false;
+        };
+
+        return { appt, form, inventory, rxList, rxSearch, rxFocus, filteredInventory,
+                 fileBefore, fileAfter, previewBefore, previewAfter,
+                 loading, saving, successMsg, errMsg, isDisabled,
+                 rxTotal, addRx, onFile, submit };
+    }
+}).mount('#app');
+</script>
+}

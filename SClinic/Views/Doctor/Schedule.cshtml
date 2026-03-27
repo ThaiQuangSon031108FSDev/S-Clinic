@@ -35,9 +35,22 @@
             <div v-for="(day, i) in weekDays" :key="i"
                  class="px-2 py-2 border-r border-slate-100 last:border-r-0 relative">
                 <div v-for="appt in getAppts(day.date, slot)" :key="appt.id"
-                     class="bg-teal-50 border border-teal-200 text-teal-800 rounded-lg px-2 py-1.5 text-xs font-semibold cursor-pointer hover:bg-teal-100 transition-colors mb-1">
+                     :class="{
+                         'bg-teal-50 border-teal-200 text-teal-800':    appt.status === 'Confirmed',
+                         'bg-green-50 border-green-200 text-green-800':  appt.status === 'Completed',
+                         'bg-amber-50 border-amber-200 text-amber-800':  appt.status === 'Pending',
+                     }"
+                     class="border rounded-lg px-2 py-1.5 text-xs font-semibold mb-1">
                     <p class="font-bold truncate">[[ appt.patient ]]</p>
-                    <p class="opacity-70 text-[10px]">[[ appt.service ]]</p>
+                    <p class="opacity-70 text-[10px] mb-1">[[ appt.service ]]</p>
+                    <!-- Action button for Confirmed appointments -->
+                    <a v-if="appt.status === 'Confirmed'"
+                       :href="`/Doctor/MedicalRecord/${appt.id}`"
+                       class="block w-full text-center bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold py-0.5 rounded mt-1 transition-colors">
+                        ▶ Tiến hành khám
+                    </a>
+                    <span v-else-if="appt.status === 'Completed'"
+                          class="block text-center text-[10px] text-green-600 font-bold mt-1">✓ Xong</span>
                 </div>
             </div>
         </div>

@@ -60,7 +60,7 @@ namespace SClinic.Data.Migrations
                             AccountId = 1,
                             Email = "admin@sclinic.vn",
                             IsActive = true,
-                            PasswordHash = "$2a$11$2WybcZPse5n/163pLuDFd.CNwrexUR/tujVEeGaXKhqSbdARberqu",
+                            PasswordHash = "$2a$11$be6zDWcZUrNe/f7vHuKV4.G1Pxdk97ZA7RJ/gb2MFCeLIlXVt7Pba",
                             RoleId = 1
                         });
                 });
@@ -99,6 +99,8 @@ namespace SClinic.Data.Migrations
                     b.HasIndex("PatientTreatmentId");
 
                     b.HasIndex("ScheduleId");
+
+                    b.HasIndex("ServiceId");
 
                     b.ToTable("Appointments");
                 });
@@ -527,6 +529,9 @@ namespace SClinic.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<int>("ServiceType")
+                        .HasColumnType("int");
+
                     b.HasKey("ServiceId");
 
                     b.ToTable("Services");
@@ -658,11 +663,17 @@ namespace SClinic.Data.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.HasOne("SClinic.Models.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("ServiceId");
+
                     b.Navigation("Patient");
 
                     b.Navigation("PatientTreatment");
 
                     b.Navigation("Schedule");
+
+                    b.Navigation("Service");
                 });
 
             modelBuilder.Entity("SClinic.Models.Doctor", b =>

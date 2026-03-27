@@ -33,5 +33,8 @@ public class Appointment
     [ForeignKey(nameof(PatientTreatmentId))]
     public PatientTreatment? PatientTreatment { get; set; }
 
+    [ForeignKey(nameof(ServiceId))]
+    public Service? Service { get; set; }
+
     public MedicalRecord? MedicalRecord { get; set; }
 }

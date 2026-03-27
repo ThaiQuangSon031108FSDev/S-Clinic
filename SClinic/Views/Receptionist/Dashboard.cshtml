@@ -94,30 +94,69 @@
                 <span class="bg-blue-200 text-blue-800 text-xs font-bold px-2.5 py-1 rounded-md">[[ cashierList.length ]] Khách</span>
             </div>
             <div class="p-4 flex-1 overflow-y-auto space-y-3">
-                <div v-for="inv in cashierList" :key="inv.invoiceId"
+                <div v-for="inv in cashierList" :key="inv.invoiceId ?? inv._apptId"
                      class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-blue-500">
-                    <h4 class="font-bold text-slate-900">[[ inv.patientName ]]</h4>
-                    <div class="mt-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                        <p class="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Chi tiết hóa đơn</p>
-                        <ul class="text-xs space-y-2 mb-3">
-                            <li v-for="(item, i) in inv.items" :key="i" class="flex justify-between items-start border-b border-slate-200/50 pb-2 border-dashed">
-                                <span class="flex-1 pr-2">[[ item.quantity ]]x [[ item.name ]]</span>
-                                <span class="font-bold text-slate-700">[[ item.subTotal.toLocaleString() ]]đ</span>
+
+                    <!-- Patient name + code -->
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h4 class="font-bold text-slate-900">[[ inv.patientName ]]</h4>
+                            <p v-if="inv.invoiceId" class="text-[10px] text-slate-400 font-mono mt-0.5">#HD-[[ String(inv.invoiceId).padStart(4,'0') ]]</p>
+                        </div>
+                        <span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full">Chờ thu</span>
+                    </div>
+
+                    <!-- Invoice details -->
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <p class="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Chi tiết dịch vụ</p>
+                        <ul class="text-xs space-y-1.5 mb-3">
+                            <li v-for="(item, i) in (inv.details || [])" :key="i"
+                                class="flex justify-between items-start border-b border-dashed border-slate-200/70 pb-1.5">
+                                <span class="flex-1 pr-2">[[ item.quantity ]]× [[ item.name ]]</span>
+                                <span class="font-bold text-slate-700">[[ (item.subtotal||0).toLocaleString() ]]đ</span>
                             </li>
-                            <li v-if="!inv.items || !inv.items.length" class="text-slate-400 italic">Hóa đơn chưa có dịch vụ.</li>
+                            <li v-if="!inv.details || !inv.details.length" class="text-slate-400 italic text-center py-1">Khám cơ bản (chưa kê thêm dịch vụ)</li>
                         </ul>
-                        <div class="flex justify-between items-center text-slate-800 mt-2">
-                            <span class="text-sm font-semibold">Tổng mức thu:</span>
-                            <span class="text-lg font-extrabold text-brand-primary">[[ inv.totalAmount.toLocaleString() ]]đ</span>
+                        <div class="flex justify-between items-center font-semibold text-slate-800 pt-1">
+                            <span class="text-sm">Tổng cần thu:</span>
+                            <span class="text-base font-extrabold text-brand-primary">[[ (inv.totalAmount||0).toLocaleString() ]]đ</span>
                         </div>
                     </div>
-                    <button @@click="payInvoice(inv)" :disabled="paying"
-                            class="w-full mt-3 bg-emerald-600 text-white hover:bg-emerald-700 py-2 rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50">
-                        <span v-if="paying">⏳ Đang xử lý...</span>
-                        <span v-else>✓ Đã thu tiền</span>
-                    </button>
+
+                    <!-- Payment input — must fill before confirming -->
+                    <div v-if="!inv._paid" class="mt-3 space-y-2">
+                        <label class="text-xs font-bold text-slate-600">💵 Khách đưa (đồng):</label>
+                        <div class="flex gap-2">
+                            <input type="number" v-model.number="inv._received" min="0"
+                                   :placeholder="(inv.totalAmount||0) + ''"
+                                   class="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                        </div>
+                        <!-- Change display -->
+                        <div v-if="inv._received > 0" class="flex justify-between text-xs px-1">
+                            <span class="text-slate-500">Tiền thừa trả lại:</span>
+                            <span :class="(inv._received - (inv.totalAmount||0)) >= 0 ? 'text-emerald-600 font-bold' : 'text-red-500 font-bold'">
+                                [[ Math.max(0, inv._received - (inv.totalAmount||0)).toLocaleString() ]]đ
+                            </span>
+                        </div>
+                        <!-- Insufficient warning -->
+                        <p v-if="inv._received > 0 && inv._received < (inv.totalAmount||0)"
+                           class="text-xs text-red-500 font-medium">⚠️ Chưa đủ số tiền cần thu</p>
+
+                        <button @@click="payInvoice(inv)"
+                                :disabled="paying || !(inv._received > 0 && inv._received >= (inv.totalAmount||0)) && (inv.totalAmount||0) > 0"
+                                class="w-full mt-1 bg-emerald-600 text-white py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-emerald-700">
+                            <span v-if="paying">⏳ Đang xử lý...</span>
+                            <span v-else>✅ Xác nhận đã thu tiền</span>
+                        </button>
+                    </div>
+
+                    <!-- Paid state -->
+                    <div v-else class="mt-3 bg-green-50 border border-green-100 rounded-lg py-2 text-center">
+                        <p class="text-emerald-700 font-bold text-sm">✅ Đã thu [[ (inv._received||0).toLocaleString() ]]đ</p>
+                        <p v-if="inv._received > inv.totalAmount" class="text-xs text-slate-500 mt-0.5">Trả lại: [[ (inv._received - inv.totalAmount).toLocaleString() ]]đ</p>
+                    </div>
                 </div>
-                <div v-if="!cashierList.length" class="text-center text-slate-400 text-sm py-8">Không có hóa đơn chờ</div>
+                <div v-if="!cashierList.length" class="text-center text-slate-400 text-sm py-8">Không có hóa đơn chờ 🎉</div>
             </div>
         </div>
     </div>
@@ -287,18 +326,25 @@ createApp({
         };
 
         const payInvoice = async (inv) => {
+            if (!inv._received || inv._received <= 0) return;
             paying.value = true;
             try {
-                const res = await fetch(`/api/invoicesapi/${inv.invoiceId}/collect`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ Method: 'Tiền mặt' })
-                });
-                if (res.ok) {
-                    await loadData();
-                } else {
-                    alert('Lỗi khi thu tiền.');
+                // Only call API if we have a real invoice ID
+                if (inv.invoiceId) {
+                    const res = await fetch(`/api/invoicesapi/${inv.invoiceId}/collect`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ Method: 'Tiền mặt', AmountReceived: inv._received })
+                    });
+                    if (!res.ok) {
+                        alert('Lỗi khi thu tiền. Vui lòng thử lại.');
+                        paying.value = false;
+                        return;
+                    }
                 }
+                // Mark paid immediately for UX, then reload in background
+                inv._paid = true;
+                setTimeout(() => loadData(), 1500);
             } catch (err) {
                 alert('Mất kết nối server.');
             }
