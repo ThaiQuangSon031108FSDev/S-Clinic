@@ -127,7 +127,8 @@ public static class DbSeeder
                 RecordId = record.RecordId,
                 AppointmentId = appt.AppointmentId,
                 PaymentStatus = PaymentStatus.Paid,
-                TotalAmount = 0m // Calculate below
+                TotalAmount = 0m, // Calculate below
+                CreatedDate = s.WorkDate.ToDateTime(s.TimeSlot).AddMinutes(30)
             };
             db.Invoices.Add(invoice);
             await db.SaveChangesAsync();

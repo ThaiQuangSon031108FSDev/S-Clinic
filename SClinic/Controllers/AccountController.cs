@@ -126,6 +126,12 @@ public class AccountController(
     [HttpPost]
     public async Task<IActionResult> CompleteRegister([FromBody] CompleteRegisterRequest req)
     {
+        if (!ModelState.IsValid)
+        {
+            var currentErr = ModelState.Values.SelectMany(v => v.Errors).FirstOrDefault()?.ErrorMessage;
+            return Json(new { success = false, message = currentErr ?? "Dữ liệu không hợp lệ." });
+        }
+
         if (string.IsNullOrWhiteSpace(req.FullName) || string.IsNullOrWhiteSpace(req.Password))
             return Json(new { success = false, message = "Vui lòng điền đầy đủ thông tin." });
 
@@ -199,7 +205,7 @@ public class AccountController(
         return role switch
         {
             "Patient"      => RedirectToAction("Dashboard", "Patient"),
-            "Doctor"       => RedirectToAction("Dashboard", "Doctor"),
+            "Doctor"       => RedirectToAction("Schedule", "Doctor"),
             "Receptionist" => RedirectToAction("Dashboard", "Receptionist"),
             "Cashier"      => RedirectToAction("Finance",   "Admin"),
             "Admin"        => RedirectToAction("Dashboard", "Admin"),
@@ -211,4 +217,21 @@ public class AccountController(
 // ── Request DTOs ───────────────────────────────────────────────────
 public record SendOtpRequest(string Phone);
 public record VerifyOtpRequest(string Phone, string Code);
-public record CompleteRegisterRequest(string Phone, string FullName, string Email, string Password);
+
+public class CompleteRegisterRequest
+{
+    [System.ComponentModel.DataAnnotations.Required]
+    [SClinic.Validation.ValidPhoneFormat]
+    public string Phone { get; set; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.Required]
+    public string FullName { get; set; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.MinLength(6)]
+    public string Password { get; set; } = string.Empty;
+}

@@ -46,17 +46,15 @@ public class PatientController(ApplicationDbContext db, IBookingService booking,
 
         // ── Auto-assign: tìm bác sĩ có lịch + còn chỗ trống ─────────────────
         var schedule = await db.DoctorSchedules
-            .Include(s => s.Doctor).ThenInclude(d => d.Account) // 👈 Added temporary include for email check
             .Where(s => s.WorkDate == workDate
                      && s.TimeSlot  == timeSlot
-                     && s.CurrentBooked < s.MaxPatients
-                     && s.Doctor.Account.Email == "bs.lethib@sclinic.vn") // 👈 Bắt buộc chọn đúng ông B để Test
+                     && s.CurrentBooked < s.MaxPatients)
             .OrderBy(s => s.CurrentBooked)   // ưu tiên bác sĩ ít khách nhất
             .FirstOrDefaultAsync();
 
         if (schedule is null)
             return Json(new { success = false,
-                message = "Không có bác sĩ nào có lịch trống vào khung giờ này (hoặc bs.lethib@sclinic.vn đã kín lịch). Vui lòng chọn ngày/giờ khác." });
+                message = "Không có bác sĩ nào có lịch trống vào khung giờ này Vui lòng chọn ngày/giờ khác." });
 
         // ── Kiểm tra chưa đặt trùng ──────────────────────────────────────────
         var alreadyBooked = await db.Appointments.AnyAsync(a =>

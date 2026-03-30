@@ -138,4 +138,26 @@ public class AppointmentsApiController(ApplicationDbContext db) : ControllerBase
 }
 
 public record StatusDto(string Status);
-public record RegisterPatientDto(string FullName, string Phone, DateTime? Dob, string MedHistory, string Reason, int DoctorId, DateTime? Date, TimeSpan Time);
+
+public class RegisterPatientDto
+{
+    [System.ComponentModel.DataAnnotations.Required]
+    public string FullName { get; set; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.Required]
+    [SClinic.Validation.ValidPhoneFormat]
+    public string Phone { get; set; } = string.Empty;
+
+    public DateTime? Dob { get; set; }
+    public string MedHistory { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.Required]
+    public int DoctorId { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Required]
+    public DateTime? Date { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Required]
+    public TimeSpan Time { get; set; }
+}

@@ -92,7 +92,8 @@
                             <label class="block text-sm font-bold text-slate-700 mb-2">Số điện thoại
                                 <span class="text-xs text-slate-400 font-normal">(để liên kết hồ sơ nếu đã từng đến khám)</span>
                             </label>
-                            <input v-model="profile.phone" type="tel" placeholder="0912 345 678"
+                            <input :value="profile.phone" type="tel" placeholder="0912 345 678"
+                                   @@input="profile.phone = $event.target.value.replace(/[^0-9]/g, '').slice(0, 10)"
                                    class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
                             <p v-if="profile.phone && phoneLinked" class="text-emerald-600 text-xs mt-1.5 font-semibold">
                                 ✅ Tìm thấy hồ sơ bệnh nhân — sẽ liên kết tự động!

@@ -178,6 +178,14 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await db.Database.MigrateAsync();
+
+    // Fix existing invoice dates so they aren't all crammed into one day
+    await db.Database.ExecuteSqlRawAsync(@"
+        UPDATE Invoices 
+        SET CreatedDate = DATEADD(minute, 30, MedicalRecords.RecordDate)
+        FROM Invoices 
+        INNER JOIN MedicalRecords ON Invoices.RecordId = MedicalRecords.RecordId;
+    ");
     
     // Seed realistic demo data for presentation
     await DbSeeder.SeedRealisticDemoData(db);

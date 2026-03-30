@@ -11,6 +11,38 @@ namespace SClinic.Controllers.Api;
 [Authorize(Roles = "Doctor,Admin")]
 public class DoctorApiController(ApplicationDbContext db, IWebHostEnvironment env) : ControllerBase
 {
+    // ── GET /api/doctor/week-appointments — List all appointments for doctor ─
+    [HttpGet("week-appointments")]
+    public async Task<IActionResult> GetWeekAppointments()
+    {
+        var accountId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var doctor = await db.Doctors.FirstOrDefaultAsync(d => d.AccountId == accountId);
+        if (doctor is null) return Ok(new object[] { });
+
+        var appointments = await db.Appointments
+            .Include(a => a.Patient)
+            .Include(a => a.Schedule)
+            .Include(a => a.Service)
+            .Include(a => a.PatientTreatment).ThenInclude(pt => pt!.Package)
+            .Where(a => a.Schedule != null 
+                     && a.Schedule.DoctorId == doctor.DoctorId
+                     && (a.Status == AppointmentStatus.Confirmed || a.Status == AppointmentStatus.Pending || a.Status == AppointmentStatus.Completed))
+            .Select(a => new
+            {
+                appointmentId = a.AppointmentId,
+                date = a.Schedule!.WorkDate.ToString("yyyy-MM-dd"), // yyyy-MM-dd formatted string for Vue 
+                timeSlot = a.Schedule.TimeSlot.ToString("HH:mm"),
+                patientName = a.Patient.FullName,
+                packageName = a.PatientTreatment != null && a.PatientTreatment.Package != null 
+                            ? a.PatientTreatment.Package.PackageName 
+                            : (a.Service != null ? a.Service.ServiceName : "Khám"),
+                status = a.Status.ToString()
+            })
+            .ToListAsync();
+
+        return Ok(appointments);
+    }
+
     // ── GET /api/doctor/appointment-detail/{id} — Unified form data ──────────
     [HttpGet("appointment-detail/{id}")]
     public async Task<IActionResult> AppointmentDetail(int id)

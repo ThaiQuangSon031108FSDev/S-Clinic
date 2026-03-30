@@ -123,37 +123,25 @@
                         </div>
                     </div>
 
-                    <!-- Payment input — must fill before confirming -->
-                    <div v-if="!inv._paid" class="mt-3 space-y-2">
-                        <label class="text-xs font-bold text-slate-600">💵 Khách đưa (đồng):</label>
-                        <div class="flex gap-2">
-                            <input type="number" v-model.number="inv._received" min="0"
-                                   :placeholder="(inv.totalAmount||0) + ''"
-                                   class="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                    <!-- Actions -->
+                    <div class="mt-3 space-y-2">
+                        <div v-if="inv.paymentStatus === 'WaitDoc'">
+                            <button disabled class="w-full mt-1 bg-slate-200 text-slate-500 py-2.5 rounded-lg text-sm font-bold shadow-sm cursor-not-allowed">
+                                ⏳ Chờ Bác sĩ chốt HĐ...
+                            </button>
                         </div>
-                        <!-- Change display -->
-                        <div v-if="inv._received > 0" class="flex justify-between text-xs px-1">
-                            <span class="text-slate-500">Tiền thừa trả lại:</span>
-                            <span :class="(inv._received - (inv.totalAmount||0)) >= 0 ? 'text-emerald-600 font-bold' : 'text-red-500 font-bold'">
-                                [[ Math.max(0, inv._received - (inv.totalAmount||0)).toLocaleString() ]]đ
-                            </span>
+                        <div v-else-if="inv.paymentStatus === 'Pending'">
+                            <button disabled class="w-full mt-1 bg-amber-100 text-amber-700 py-2.5 rounded-lg text-sm font-bold shadow-sm cursor-not-allowed border border-amber-200">
+                                ⏳ Đang chờ Thu Ngân tính tiền...
+                            </button>
                         </div>
-                        <!-- Insufficient warning -->
-                        <p v-if="inv._received > 0 && inv._received < (inv.totalAmount||0)"
-                           class="text-xs text-red-500 font-medium">⚠️ Chưa đủ số tiền cần thu</p>
-
-                        <button @@click="payInvoice(inv)"
-                                :disabled="paying || !(inv._received > 0 && inv._received >= (inv.totalAmount||0)) && (inv.totalAmount||0) > 0"
-                                class="w-full mt-1 bg-emerald-600 text-white py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-emerald-700">
-                            <span v-if="paying">⏳ Đang xử lý...</span>
-                            <span v-else>✅ Xác nhận đã thu tiền</span>
-                        </button>
-                    </div>
-
-                    <!-- Paid state -->
-                    <div v-else class="mt-3 bg-green-50 border border-green-100 rounded-lg py-2 text-center">
-                        <p class="text-emerald-700 font-bold text-sm">✅ Đã thu [[ (inv._received||0).toLocaleString() ]]đ</p>
-                        <p v-if="inv._received > inv.totalAmount" class="text-xs text-slate-500 mt-0.5">Trả lại: [[ (inv._received - inv.totalAmount).toLocaleString() ]]đ</p>
+                        <div v-else-if="inv.paymentStatus === 'Paid'">
+                            <p class="text-emerald-700 font-bold text-sm text-center mb-2">✅ Thu ngân đã thu tiền</p>
+                            <button @@click="dismissAppt(inv._apptId)" 
+                                    class="w-full bg-emerald-600 text-white py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95 hover:bg-emerald-700">
+                                Xác nhận bệnh nhân ra về
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div v-if="!cashierList.length" class="text-center text-slate-400 text-sm py-8">Không có hóa đơn chờ 🎉</div>
@@ -217,17 +205,14 @@ createApp({
         const search = ref('');
         const loading = ref(true);
 
-        // Checkin states
         const checkinCode = ref('');
         const checkinMsg  = ref('');
         const checkinOk   = ref(false);
 
-        // Real data from DB
         const allPatients = ref([]);
-        const pendingInvoices = ref([]);
-        const paying = ref(false);
+        const allInvoices = ref([]);
+        const dismissedAppts = ref(JSON.parse(localStorage.getItem('sc_dismissed_appts') || '[]'));
 
-        // Fetch today's appointments from API
         const loadData = async () => {
             try {
                 // Fetch Appointments
@@ -248,10 +233,9 @@ createApp({
                              a.status === 'Completed' ? 'cashier'   : 'done'
                 }));
 
-                // Fetch Pending Invoices for cashier col
-                const resI = await fetch('/api/invoicesapi?status=Pending');
-                const dataI = await resI.json();
-                pendingInvoices.value = dataI;
+                // Fetch ALL Invoices (Pending and Paid) 
+                const resI = await fetch('/api/invoicesapi');
+                allInvoices.value = await resI.json();
 
             } catch (e) {
                 console.error('Failed to load data', e);
@@ -261,7 +245,6 @@ createApp({
 
         onMounted(() => {
             loadData();
-            // Auto-refresh every 30s so receptionist sees doctor updates
             setInterval(loadData, 30_000);
         });
 
@@ -275,16 +258,33 @@ createApp({
 
         const pendingList = computed(() => allPatients.value.filter(p => p.status === 'pending'));
         const activeList  = computed(() => allPatients.value.filter(p => p.status === 'active'));
-        // cashierList = Completed appointments (doctor done) + pending invoices merged
+        
+        // cashierList = Completed appointments but not dismissed
         const cashierList = computed(() => {
-            const fromAppts = allPatients.value
-                .filter(p => p.status === 'cashier')
-                .map(p => ({ invoiceId: null, patientName: p.name, totalAmount: 0, paymentStatus: 'Pending', _apptId: p.id }));
-            // Merge: avoid duplicates if invoice already created for same patient
-            const invoiceNames = new Set(pendingInvoices.value.map(i => i.patientName));
-            const uniqueAppts  = fromAppts.filter(a => !invoiceNames.has(a.patientName));
-            return [...uniqueAppts, ...pendingInvoices.value];
+            const cashierAppts = allPatients.value.filter(p => p.status === 'cashier' && !dismissedAppts.value.includes(p.id));
+            return cashierAppts.map(p => {
+                const inv = allInvoices.value.find(i => i.patientName === p.name);
+                if (inv) {
+                    return {
+                        _apptId: p.id,
+                        invoiceId: inv.invoiceId,
+                        patientName: p.name,
+                        totalAmount: inv.totalAmount,
+                        paymentStatus: inv.paymentStatus, // 'Pending' or 'Paid'
+                        details: inv.details
+                    };
+                }
+                return {
+                    _apptId: p.id,
+                    invoiceId: null,
+                    patientName: p.name,
+                    totalAmount: 0,
+                    paymentStatus: 'WaitDoc',
+                    details: []
+                };
+            });
         });
+
         const filteredAll = computed(() => {
             const q = search.value.toLowerCase();
             return !q ? allPatients.value : allPatients.value.filter(p => p.name.toLowerCase().includes(q) || p.phone.includes(q));
@@ -294,7 +294,6 @@ createApp({
             if (!checkinCode.value.trim()) return;
             const code = checkinCode.value.trim().toLowerCase();
             
-            // Tìm trong danh sách chờ (Pending) theo ID (APT-00X) hoặc số CĐ
             const target = pendingList.value.find(p => 
                 `apt-${String(p.id).padStart(4,'0')}` === code || 
                 `#apt-${String(p.id).padStart(4,'0')}` === code || 
@@ -318,42 +317,15 @@ createApp({
             p.status = 'active';
             await patchStatus(p.id, 'Confirmed');
         };
-        const moveToCashier = async (p) => {
-            // Doctors now ALWAYS create an invoice internally via /complete-exam API
-            // So if a Receptionist clicks this manually, just force the frontend update
-            p.status = 'done';
-            await loadData();
-        };
 
-        const payInvoice = async (inv) => {
-            if (!inv._received || inv._received <= 0) return;
-            paying.value = true;
-            try {
-                // Only call API if we have a real invoice ID
-                if (inv.invoiceId) {
-                    const res = await fetch(`/api/invoicesapi/${inv.invoiceId}/collect`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ Method: 'Tiền mặt', AmountReceived: inv._received })
-                    });
-                    if (!res.ok) {
-                        alert('Lỗi khi thu tiền. Vui lòng thử lại.');
-                        paying.value = false;
-                        return;
-                    }
-                }
-                // Mark paid immediately for UX, then reload in background
-                inv._paid = true;
-                setTimeout(() => loadData(), 1500);
-            } catch (err) {
-                alert('Mất kết nối server.');
-            }
-            paying.value = false;
+        const dismissAppt = (apptId) => {
+            dismissedAppts.value.push(apptId);
+            localStorage.setItem('sc_dismissed_appts', JSON.stringify(dismissedAppts.value));
         };
 
         return { view, search, loading, checkinCode, checkinMsg, checkinOk,
-                 allPatients, pendingList, activeList, cashierList, filteredAll, paying, 
-                 doCheckin, callIn, moveToCashier, payInvoice };
+                 allPatients, pendingList, activeList, cashierList, filteredAll,
+                 doCheckin, callIn, dismissAppt };
     }
 }).mount('#app');
 </script>
