@@ -26,12 +26,19 @@ public class PatientController(ApplicationDbContext db, IBookingService booking,
     }
 
     // GET /Patient/Book
-    public IActionResult Book() => View();
+    public IActionResult Book([FromQuery] int treatmentId = 0)
+    {
+        ViewBag.TreatmentId = treatmentId > 0 ? treatmentId : (int?)null;
+        return View();
+    }
 
     // POST /Patient/Book — create appointment
     [HttpPost]
-    public async Task<IActionResult> Book([FromBody] BookRequest req)
+    public async Task<IActionResult> Book([FromBody] BookRequest? req)
     {
+        if (req is null)
+            return Json(new { success = false, message = "Dữ liệu đặt lịch không hợp lệ." });
+
         var accountId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
         var patient   = await db.Patients.FirstOrDefaultAsync(p => p.AccountId == accountId);
         if (patient is null)
@@ -67,11 +74,12 @@ public class PatientController(ApplicationDbContext db, IBookingService booking,
         // ── Tạo lịch hẹn ─────────────────────────────────────────────────────
         var appt = new Appointment
         {
-            PatientId  = patient.PatientId,
-            ScheduleId = schedule.ScheduleId,
-            ServiceId  = req.ServiceId > 0 ? req.ServiceId : null,
-            Notes      = req.Note?.Trim(),
-            Status     = AppointmentStatus.Pending,
+            PatientId           = patient.PatientId,
+            ScheduleId          = schedule.ScheduleId,
+            ServiceId           = req.ServiceId is > 0 ? req.ServiceId : null,
+            Notes               = req.Note?.Trim(),
+            PatientTreatmentId  = req.PatientTreatmentId > 0 ? req.PatientTreatmentId : null,
+            Status              = AppointmentStatus.Pending,
         };
         db.Appointments.Add(appt);
         schedule.CurrentBooked++;
@@ -98,7 +106,7 @@ public class PatientController(ApplicationDbContext db, IBookingService booking,
         return detail is null ? NotFound() : View(detail);
     }
 
-    // GET /api/patient/invoices — returns invoices for the logged-in patient
+    // GET /api/patient/invoices — returns ALL invoices for the logged-in patient
     [HttpGet("/api/patient/invoices")]
     public async Task<IActionResult> MyInvoices()
     {
@@ -106,18 +114,35 @@ public class PatientController(ApplicationDbContext db, IBookingService booking,
         var patient = await db.Patients.FirstOrDefaultAsync(p => p.AccountId == accountId);
         if (patient is null) return Ok(Array.Empty<object>());
 
+        // Collect all PatientTreatmentIds belonging to this patient
+        var patientTreatmentIds = await db.PatientTreatments
+            .Where(pt => pt.PatientId == patient.PatientId)
+            .Select(pt => pt.PackageId)
+            .ToListAsync();
+
         var invoices = await db.Invoices
             .Include(i => i.Record)
                 .ThenInclude(r => r!.Appointment)
+            .Include(i => i.Appointment)
             .Include(i => i.InvoiceDetails)
                 .ThenInclude(d => d.Medicine)
             .Include(i => i.InvoiceDetails)
                 .ThenInclude(d => d.Service)
-            .Where(i => i.Record != null
-                     && i.Record.Appointment != null
-                     && i.Record.Appointment.PatientId == patient.PatientId)
+            .Include(i => i.InvoiceDetails)
+                .ThenInclude(d => d.Package)  // for treatment package invoices
+            .Where(i =>
+                // Type 1: From completed appointment (doctor filled medical record)
+                (i.Record != null && i.Record.Appointment != null && i.Record.Appointment.PatientId == patient.PatientId)
+                // Type 2: Direct appointment invoice (no record yet)
+                || (i.Appointment != null && i.Appointment.PatientId == patient.PatientId)
+                // Type 3: Treatment package purchase (RecordId=null, AppointmentId=null, but PackageId in details)
+                || i.InvoiceDetails.Any(d => d.ItemType == InvoiceItemType.Package && d.PackageId != null && patientTreatmentIds.Contains(d.PackageId!.Value))
+            )
             .OrderByDescending(i => i.CreatedDate)
             .ToListAsync();
+
+        // Deduplicate: same invoice can match multiple clauses
+        invoices = invoices.DistinctBy(i => i.InvoiceId).ToList();
 
         var result = invoices.Select(i => new {
             i.InvoiceId,
@@ -126,9 +151,11 @@ public class PatientController(ApplicationDbContext db, IBookingService booking,
             CreatedDate = i.CreatedDate.ToString("dd/MM/yyyy HH:mm"),
             Details     = i.InvoiceDetails.Select((d, idx) => new {
                 Line  = idx,
-                Name  = d.Medicine?.MedicineName ?? d.Service?.ServiceName ?? "—",
+                Name  = d.ItemType == InvoiceItemType.Package
+                        ? (d.Package?.PackageName ?? "Gói liệu trình")
+                        : d.Medicine?.MedicineName ?? d.Service?.ServiceName ?? "—",
                 Qty   = d.Quantity,
-                Total = d.Quantity * (d.UnitPrice)
+                Total = d.Quantity * d.UnitPrice
             }).ToList()
         });
 
@@ -136,4 +163,4 @@ public class PatientController(ApplicationDbContext db, IBookingService booking,
     }
 }
 
-public record BookRequest(int DoctorId, int ServiceId, string Date, string Time, string? Note);
+public record BookRequest(int DoctorId, int? ServiceId, string Date, string Time, string? Note, int PatientTreatmentId = 0);

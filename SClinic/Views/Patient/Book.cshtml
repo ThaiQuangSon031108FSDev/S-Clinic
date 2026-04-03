@@ -19,6 +19,10 @@
         <div class="text-center mb-8">
             <h1 class="text-3xl font-extrabold text-slate-900 mb-2">Đặt lịch khám</h1>
             <p class="text-slate-500 text-sm">Bác sĩ sẽ được phân công tự động phù hợp với lịch trống.</p>
+            <!-- Treatment rebooking banner — only shown when ?treatmentId=N is in URL -->
+            <div v-if="preTreatmentId" class="mt-3 inline-flex items-center gap-2 bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold px-4 py-2 rounded-full">
+                💊 Buổi này thuộc gói liệu trình đang điều trị của bạn
+            </div>
         </div>
 
         <div id="app">
@@ -42,22 +46,67 @@
 
             <div class="bg-white rounded-3xl shadow-xl border border-slate-100">
 
-                <!-- ─── STEP 1: Dịch vụ ─────────────────────────── -->
+                <!-- ─── STEP 1: Dịch vụ hoặc Gói liệu trình ─────────────── -->
                 <div v-if="step===1" class="p-8">
                     <h2 class="text-xl font-bold text-slate-900 mb-1">Bạn cần hỗ trợ gì?</h2>
-                    <p class="text-slate-400 text-sm mb-6">Chọn mục đích khám để chúng tôi chuẩn bị tốt nhất cho bạn.</p>
-                    <div class="grid grid-cols-2 gap-3">
+                    <p class="text-slate-400 text-sm mb-5">Chọn dịch vụ đơn hoặc tiếp tục gói liệu trình đang điều trị.</p>
+
+                    <!-- Tab switcher -->
+                    <div class="flex bg-slate-100 rounded-xl p-1 mb-6">
+                        <button @@click="step1Tab='service'"
+                                :class="step1Tab==='service' ? 'bg-white shadow-sm text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-700'"
+                                class="flex-1 py-2 text-sm rounded-lg transition-all">
+                            📌 Dịch vụ đơn
+                        </button>
+                        <button @@click="step1Tab='package'"
+                                :class="step1Tab==='package' ? 'bg-white shadow-sm text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-700'"
+                                class="flex-1 py-2 text-sm rounded-lg transition-all">
+                            💢 Gói liệu trình của tôi
+                            <span v-if="myTreatments.length" class="ml-1 bg-teal-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">[[ myTreatments.length ]]</span>
+                        </button>
+                    </div>
+
+                    <!-- Tab: Dịch vụ -->
+                    <div v-if="step1Tab==='service'" class="grid grid-cols-2 gap-3">
                         <button v-for="svc in services" :key="svc.id"
-                                @@click="form.serviceId = svc.id; form.serviceName = svc.name"
-                                :class="form.serviceId === svc.id
+                                @@click="form.serviceId = svc.id; form.serviceName = svc.name; form.treatmentId = 0"
+                                :class="form.serviceId === svc.id && !form.treatmentId
                                     ? 'border-brand-primary bg-teal-50 shadow-lg scale-[1.02]'
                                     : 'border-slate-200 hover:border-teal-300 hover:bg-teal-50/50'"
-                                class="p-4 rounded-2xl border-2 text-left transition-all duration-200 group">
+                                class="p-4 rounded-2xl border-2 text-left transition-all duration-200">
                             <div class="text-2xl mb-2">[[ svc.icon ]]</div>
                             <p class="text-sm font-bold text-slate-900 leading-snug">[[ svc.name ]]</p>
                             <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">[[ svc.desc ]]</p>
                             <p class="text-xs font-extrabold text-brand-primary mt-2.5">[[ svc.price ]]</p>
                         </button>
+                    </div>
+
+                    <!-- Tab: Gói liệu trình -->
+                    <div v-if="step1Tab==='package'">
+                        <div v-if="myTreatments.length === 0" class="text-center py-10 text-slate-400">
+                            <div class="text-4xl mb-3">💢</div>
+                            <p class="font-semibold text-sm">Bạn chưa có gói liệu trình nào đang có hiệu lực.</p>
+                            <p class="text-xs mt-1">Liên hệ lễ tân để đăng ký gói.</p>
+                        </div>
+                        <div v-else class="space-y-3">
+                            <button v-for="t in myTreatments" :key="t.patientTreatmentId"
+                                    @@click="selectTreatment(t)"
+                                    :class="form.treatmentId === t.patientTreatmentId
+                                        ? 'border-brand-primary bg-teal-50 ring-2 ring-teal-200'
+                                        : 'border-slate-200 hover:border-teal-300'"
+                                    class="w-full p-4 rounded-2xl border-2 text-left transition-all">
+                                <div class="flex justify-between items-start mb-2">
+                                    <p class="font-bold text-slate-900 text-sm">[[ t.packageName ]]</p>
+                                    <span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">Đang tiến hành</span>
+                                </div>
+                                <div class="flex gap-1 mb-2">
+                                    <div v-for="i in t.totalSessions" :key="i"
+                                         :class="i <= t.usedSessions ? 'bg-brand-primary' : 'bg-slate-200'"
+                                         class="h-2 flex-1 rounded-sm transition-all"></div>
+                                </div>
+                                <p class="text-[11px] text-slate-500">Đã dùng [[ t.usedSessions ]]/[[ t.totalSessions ]] buổi • Còn [[ t.totalSessions - t.usedSessions ]] buổi</p>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -249,52 +298,76 @@ createApp({
         const bookErr    = ref('');
         const steps      = ['Dịch vụ', 'Ngày khám', 'Khung giờ', 'Xác nhận'];
 
-        const form = ref({ serviceId: null, serviceName: '', date: '', time: '', note: '' });
+        const form = ref({ serviceId: null, serviceName: '', date: '', time: '', note: '', treatmentId: 0 });
 
         const services = ref([]);
+        const myTreatments = ref([]);  // patient's active treatment packages
+        const step1Tab = ref('service'); // 'service' | 'package'
 
-        // Pre-select serviceId from URL ?serviceId=N
-        const urlParams  = new URLSearchParams(window.location.search);
-        const preService = parseInt(urlParams.get('serviceId') || '0');
+        // Pre-select serviceId and treatmentId from URL query params
+        const urlParams      = new URLSearchParams(window.location.search);
+        const preService     = parseInt(urlParams.get('serviceId') || '0');
+        const preTreatmentId = parseInt(urlParams.get('treatmentId') || '0');
 
         const morningSlots   = ['08:00','08:30','09:00','09:30','10:00','10:30'];
         const afternoonSlots = ['13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'];
 
         // Icons map by index
-        const icons = ['🔬','💉','✨','⚡','💡','📋','🏥','💊','🩺','🌿'];
+        const icons = ['🔬','💉','✨','⚡','💡','📍','🏥','💊','🪺','🌿'];
 
         onMounted(async () => {
             try {
-                const res  = await fetch('/api/servicesapi');
-                const data = await res.json();
-                services.value = data.map((s, i) => ({
+                const [svcRes, treatRes] = await Promise.all([
+                    fetch('/api/servicesapi'),
+                    fetch('/api/treatments/my-active')
+                ]);
+                const svcData   = await svcRes.json();
+                const treatData = treatRes.ok ? await treatRes.json() : [];
+
+                services.value = svcData.map((s, i) => ({
                     id:    s.serviceId,
                     name:  s.serviceName,
                     icon:  icons[i % icons.length],
                     desc:  'Dịch vụ chuyên khoa da liễu',
                     price: s.price.toLocaleString('vi-VN') + 'đ / lượt'
                 }));
+
+                myTreatments.value = treatData;
+
+                // Auto-switch to package tab if came from treatment rebooking
+                if (preTreatmentId > 0) {
+                    step1Tab.value = 'package';
+                    const found = treatData.find(t => t.patientTreatmentId === preTreatmentId);
+                    if (found) selectTreatment(found);
+                }
+
                 // Pre-select if serviceId in URL
                 if (preService > 0) {
                     const found = services.value.find(s => s.id === preService);
                     if (found) {
                         form.value.serviceId   = found.id;
                         form.value.serviceName = found.name;
-                        step.value = 2; // skip to date picker
+                        step.value = 2;
                     }
                 }
             } catch {
                 // Fallback to static if API fails
                 services.value = [
                     { id:1, name:'Khám & Soi da 3D',               icon:'🔬', desc:'Chẩn đoán tình trạng da chuyên sâu',    price:'Liên hệ' },
-                    { id:2, name:'Lấy nhân mụn chuẩn Y khoa',      icon:'💉', desc:'Cho da viêm, mụn bọc, mụn mủ',          price:'Liên hệ' },
+                    { id:2, name:'Lấy nhân mụn chuẩn Y khoa',      icon:'💉', desc:'Cho da viêm, mụn bọ, mụn mủ',          price:'Liên hệ' },
                     { id:3, name:'Peel da sinh học BHA/AHA',        icon:'✨', desc:'Tẩy tế bào chết, tái tạo da',           price:'Liên hệ' },
                     { id:4, name:'Điện di Ion phục hồi B5',         icon:'⚡', desc:'Phục hồi da nhạy cảm, corticoid',      price:'Liên hệ' },
                     { id:5, name:'Chiếu ánh sáng Omega Light',      icon:'💡', desc:'Diệt khuẩn, giảm viêm không xâm lấn',  price:'Liên hệ' },
-                    { id:6, name:'Tư vấn lập phác đồ cá nhân',     icon:'📋', desc:'Bác sĩ thiết kế phác đồ riêng cho bạn', price:'Miễn phí'},
+                    { id:6, name:'Tư vấn lập phác đồ cá nhân',     icon:'📍', desc:'Bác sĩ thiết kế phác đồ riêng cho bạn', price:'Miễn phí'},
                 ];
             }
         });
+
+        const selectTreatment = (t) => {
+            form.value.treatmentId  = t.patientTreatmentId;
+            form.value.serviceId    = null;
+            form.value.serviceName  = t.packageName + ' (Buổi tiếp theo)';
+        };
 
         // ── Calendar logic ───────────────────────────────────
         const today = new Date(); today.setHours(0,0,0,0);
@@ -360,7 +433,7 @@ createApp({
 
         // ── Validation ───────────────────────────────────────
         const canNext = computed(() => {
-            if (step.value === 1) return !!form.value.serviceId;
+            if (step.value === 1) return !!form.value.serviceId || form.value.treatmentId > 0;
             if (step.value === 2) return !!form.value.date;
             if (step.value === 3) return !!form.value.time;
             return true;
@@ -377,11 +450,12 @@ createApp({
                     method:  'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body:    JSON.stringify({
-                        doctorId:  0,   // 0 = auto-assign on backend
-                        serviceId: form.value.serviceId,
-                        date:      form.value.date,
-                        time:      form.value.time,
-                        note:      form.value.note
+                        doctorId:           0,   // 0 = auto-assign on backend
+                        serviceId:          form.value.serviceId,
+                        date:               form.value.date,
+                        time:               form.value.time,
+                        note:               form.value.note,
+                        patientTreatmentId: form.value.treatmentId > 0 ? form.value.treatmentId : (preTreatmentId > 0 ? preTreatmentId : 0)
                     })
                 });
                 const data = await res.json();
@@ -392,6 +466,8 @@ createApp({
         };
 
         return { step, steps, form, booked, submitting, bookErr, services,
+                 myTreatments, step1Tab, selectTreatment,
+                 preTreatmentId,
                  morningSlots, afternoonSlots, canNext, next, submit,
                  calYear, calMonth, calCells, monthNames, slotsLoading,
                  prevMonth, nextMonth, isPast, isToday, formatDate, selectDate, displayDate,

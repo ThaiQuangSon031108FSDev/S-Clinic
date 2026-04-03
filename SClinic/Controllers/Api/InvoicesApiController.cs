@@ -24,6 +24,8 @@ public class InvoicesApiController(ApplicationDbContext db) : ControllerBase
                 .ThenInclude(d => d.Medicine)
             .Include(i => i.InvoiceDetails)
                 .ThenInclude(d => d.Service)
+            .Include(i => i.InvoiceDetails)
+                .ThenInclude(d => d.Package)    // Gói liệu trình
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<PaymentStatus>(status, true, out var ps))
@@ -40,8 +42,9 @@ public class InvoicesApiController(ApplicationDbContext db) : ControllerBase
                            ?? i.Appointment?.Patient?.FullName
                            ?? "Chưa cập nhật";
 
-            // ServiceName: try InvoiceDetails first, then look up service by Appointment.ServiceId
-            var serviceName = i.InvoiceDetails.FirstOrDefault(d => d.ItemType == InvoiceItemType.Service)?.Service?.ServiceName
+            // ServiceName: Service lẻ hoặc tên gói liệu trình
+            var serviceName = i.InvoiceDetails.FirstOrDefault(d => d.ItemType == InvoiceItemType.Package)?.Package?.PackageName
+                           ?? i.InvoiceDetails.FirstOrDefault(d => d.ItemType == InvoiceItemType.Service)?.Service?.ServiceName
                            ?? "";
 
             return new
@@ -56,7 +59,8 @@ public class InvoicesApiController(ApplicationDbContext db) : ControllerBase
                 {
                     Name      = d.ItemType == InvoiceItemType.Medicine && d.Medicine != null ? d.Medicine.MedicineName
                                : d.ItemType == InvoiceItemType.Service && d.Service  != null ? d.Service.ServiceName
-                               : "Dịch vụ/Thuốc",
+                               : d.ItemType == InvoiceItemType.Package && d.Package  != null ? $"🎁 {d.Package.PackageName}"
+                               : "—",
                     d.Quantity,
                     d.UnitPrice,
                     Subtotal  = d.SubTotal

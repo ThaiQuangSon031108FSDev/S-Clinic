@@ -1,5 +1,8 @@
 /**
- * booking.js — Vue 3 booking wizard
+ * booking.js — Vue 3 booking wizard with Sticky Routing (2.2.5)
+ *
+ * Sticky Routing: nếu bệnh nhân có gói liệu trình đang active,
+ * hệ thống tự động khóa bác sĩ = PrimaryDoctorId của gói đó.
  */
 const { createApp, ref, computed } = Vue;
 
@@ -8,28 +11,50 @@ const BookingWizard = {
     <div class="max-w-2xl mx-auto px-4 py-12 animate-fade-in">
         <h1 class="text-3xl font-bold text-slate-800 mb-8">Đặt lịch khám</h1>
 
+        <!-- ── Sticky routing banner ─────────────────────────────────────── -->
+        <div v-if="stickyTreatment"
+             class="mb-6 p-4 rounded-xl bg-brand-50 border border-brand-200 text-sm flex items-start gap-3">
+            <span class="text-xl">📌</span>
+            <div>
+                <p class="font-semibold text-brand-800">Gói liệu trình đang hoạt động</p>
+                <p class="text-brand-700 mt-1">
+                    Bạn đang điều trị gói <strong>{{ stickyTreatment.packageName }}</strong>
+                    với Bác sĩ <strong>{{ stickyTreatment.primaryDoctorName }}</strong>
+                    ({{ stickyTreatment.usedSessions }}/{{ stickyTreatment.totalSessions }} buổi).
+                    Lịch hẹn sẽ được tự động gắn với bác sĩ phụ trách.
+                </p>
+            </div>
+        </div>
+
         <div class="card-glass p-8 space-y-6">
             <!-- Step indicator -->
             <div class="flex items-center gap-2 mb-6">
                 <div v-for="(s, i) in steps" :key="i"
                      :class="['flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all',
-                              i < currentStep ? 'bg-brand-600 text-white'
-                            : i === currentStep ? 'ring-2 ring-brand-400 text-brand-600 bg-white'
-                            : 'bg-slate-100 text-slate-400']">
+                               i < currentStep ? 'bg-brand-600 text-white'
+                             : i === currentStep ? 'ring-2 ring-brand-400 text-brand-600 bg-white'
+                             : 'bg-slate-100 text-slate-400']">
                     {{ i + 1 }}
                 </div>
                 <span class="text-sm text-slate-500 ml-2">{{ steps[currentStep] }}</span>
             </div>
 
-            <!-- Step 0: Choose doctor -->
+            <!-- Step 0: Choose doctor & date -->
             <div v-if="currentStep === 0">
                 <label class="block text-sm font-medium text-slate-700 mb-1">Chọn bác sĩ</label>
-                <select v-model="selectedDoctorId" class="form-input" @change="loadSlots">
+                <!-- Sticky routing: doctor locked -->
+                <div v-if="stickyTreatment"
+                     class="form-input bg-slate-50 text-slate-700 flex items-center gap-2 cursor-not-allowed">
+                    🔒 {{ stickyTreatment.primaryDoctorName }}
+                    <span class="text-xs text-slate-400 ml-auto">(Bác sĩ phụ trách gói)</span>
+                </div>
+                <select v-else v-model="selectedDoctorId" class="form-input" @change="loadSlots">
                     <option value="">-- Chọn bác sĩ --</option>
                     <option v-for="d in doctors" :key="d.doctorId" :value="d.doctorId">
                         {{ d.fullName }} — {{ d.specialty }}
                     </option>
                 </select>
+
                 <label class="block text-sm font-medium text-slate-700 mt-4 mb-1">Chọn ngày</label>
                 <input type="date" v-model="selectedDate" class="form-input" @change="loadSlots"
                        :min="todayStr" />
@@ -62,15 +87,19 @@ const BookingWizard = {
                 <h3 class="font-semibold text-slate-800">Xác nhận đặt lịch</h3>
                 <div class="p-4 rounded-xl bg-brand-50 border border-brand-100 space-y-2 text-sm">
                     <p><span class="text-slate-500">Bác sĩ:</span>
-                       <span class="font-medium ml-2">{{ selectedDoctor?.fullName }}</span></p>
+                       <span class="font-medium ml-2">{{ selectedDoctor?.fullName ?? stickyTreatment?.primaryDoctorName }}</span></p>
                     <p><span class="text-slate-500">Ngày:</span>
                        <span class="font-medium ml-2">{{ formatDate(selectedDate) }}</span></p>
                     <p><span class="text-slate-500">Giờ:</span>
                        <span class="font-medium ml-2">{{ selectedSlot?.timeSlot }}</span></p>
+                    <p v-if="stickyTreatment">
+                        <span class="text-slate-500">Gói:</span>
+                        <span class="font-medium ml-2 text-brand-700">{{ stickyTreatment.packageName }}</span>
+                    </p>
                 </div>
             </div>
 
-            <!-- Navigation buttons -->
+            <!-- Navigation -->
             <div class="flex justify-between pt-4">
                 <button v-if="currentStep > 0" @click="currentStep--" class="btn-secondary">
                     ← Quay lại
@@ -86,13 +115,15 @@ const BookingWizard = {
                 </button>
             </div>
 
-            <!-- Success message -->
-            <div v-if="successMsg" class="p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm text-center">
+            <!-- Success -->
+            <div v-if="successMsg"
+                 class="p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm text-center">
                 {{ successMsg }}
             </div>
         </div>
     </div>
     `,
+
     data() {
         return {
             steps: ['Chọn bác sĩ & ngày', 'Chọn giờ', 'Xác nhận'],
@@ -106,58 +137,101 @@ const BookingWizard = {
             booking: false,
             successMsg: '',
             todayStr: new Date().toISOString().split('T')[0],
+            // Sticky routing
+            stickyTreatment: null,   // active PatientTreatment (if any)
         };
     },
+
     computed: {
         selectedDoctor() {
             return this.doctors.find(d => d.doctorId === this.selectedDoctorId);
         },
         canProceed() {
-            if (this.currentStep === 0) return this.selectedDoctorId && this.selectedDate;
+            if (this.currentStep === 0) {
+                const hasDoctor = this.stickyTreatment || this.selectedDoctorId;
+                return hasDoctor && this.selectedDate;
+            }
             if (this.currentStep === 1) return !!this.selectedSlot;
             return true;
+        },
+        // The effective doctor ID — sticky takes priority
+        effectiveDoctorId() {
+            return this.stickyTreatment?.primaryDoctorId ?? this.selectedDoctorId;
         }
     },
-    mounted() {
-        this.loadDoctors();
+
+    async mounted() {
+        await Promise.all([this.loadDoctors(), this.checkStickyRouting()]);
     },
+
     methods: {
-        async loadDoctors() {
-            const res = await fetch('/api/doctors', {
-                headers: { Authorization: `Bearer ${window.SClinicAuth.getToken()}` }
-            });
-            if (res.ok) this.doctors = await res.json();
+        // ── Sticky routing: detect if patient has an active treatment ─────────
+        async checkStickyRouting() {
+            try {
+                const res = await fetch('/api/treatments/my-active', { credentials: 'include' });
+                if (!res.ok) return;
+                const list = await res.json();
+                if (list.length > 0) {
+                    // Use the first active treatment's primary doctor
+                    this.stickyTreatment   = list[0];
+                    this.selectedDoctorId  = list[0].primaryDoctorId;
+                }
+            } catch { /* patient not logged in or no treatments — safe to ignore */ }
         },
+
+        async loadDoctors() {
+            try {
+                const res = await fetch('/api/doctors', { credentials: 'include' });
+                if (res.ok) this.doctors = await res.json();
+            } catch { /* ignore */ }
+        },
+
         async loadSlots() {
-            if (!this.selectedDoctorId || !this.selectedDate) return;
+            const doctorId = this.effectiveDoctorId;
+            if (!doctorId || !this.selectedDate) return;
             this.loading = true;
-            this.slots = [];
+            this.slots   = [];
             this.selectedSlot = null;
-            const res = await fetch(
-                `/api/booking/slots?doctorId=${this.selectedDoctorId}&date=${this.selectedDate}`,
-                { headers: { Authorization: `Bearer ${window.SClinicAuth.getToken()}` } }
-            );
-            if (res.ok) this.slots = await res.json();
+            try {
+                const res = await fetch(
+                    `/api/booking/slots?doctorId=${doctorId}&date=${this.selectedDate}`,
+                    { credentials: 'include' }
+                );
+                if (res.ok) this.slots = await res.json();
+            } catch { /* ignore */ }
             this.loading = false;
         },
+
         nextStep() {
             if (this.canProceed) this.currentStep++;
         },
+
         async confirmBooking() {
             this.booking = true;
-            const res = await fetch('/api/booking/book', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${window.SClinicAuth.getToken()}`
-                },
-                body: JSON.stringify({ scheduleId: this.selectedSlot.scheduleId })
-            });
+            try {
+                const res = await fetch('/Patient/Book', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        doctorId:           this.effectiveDoctorId,
+                        serviceId:          0,
+                        date:               this.selectedDate,
+                        time:               this.selectedSlot.timeSlot,
+                        patientTreatmentId: this.stickyTreatment?.patientTreatmentId ?? null,
+                        note:               null,
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    this.successMsg = '✅ Đặt lịch thành công! Lịch hẹn của bạn đã được xác nhận.';
+                } else {
+                    alert(data.message || 'Đặt lịch thất bại.');
+                }
+            } catch { alert('Lỗi kết nối.'); }
             this.booking = false;
-            if (res.ok) {
-                this.successMsg = '✅ Đặt lịch thành công! Chúng tôi sẽ xác nhận sớm nhất.';
-            }
         },
+
         formatDate(d) {
             return d ? new Date(d).toLocaleDateString('vi-VN') : '';
         }

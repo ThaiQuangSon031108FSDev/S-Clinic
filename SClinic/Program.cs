@@ -189,6 +189,15 @@ if (app.Environment.IsDevelopment())
     
     // Seed realistic demo data for presentation
     await DbSeeder.SeedRealisticDemoData(db);
+
+    // Seed treatment packages (idempotent — skips if already seeded)
+    await DbSeeder.SeedTreatmentPackages(db);
+
+    // Seed future schedules (today + 30 days) so there are always bookable slots
+    await DbSeeder.SeedFutureSchedules(db);
+
+    // Seed demo PatientTreatment records for test patients (idempotent)
+    await DbSeeder.SeedDemoPatientTreatments(db);
 }
 
 // ── Dev Utility: Reset all passwords (Development only) ───────────────────

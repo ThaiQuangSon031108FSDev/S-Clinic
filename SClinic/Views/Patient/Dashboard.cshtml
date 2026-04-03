@@ -168,7 +168,7 @@
                                     <div class="bg-brand-primary h-3 rounded-full transition-all duration-1000" style="width:@(pct)%"></div>
                                 </div>
                                 <div class="flex gap-4 mt-6">
-                                    <button @@click="bookingOpen=true" class="flex-1 py-3 rounded-xl border-2 border-brand-primary text-brand-primary font-bold hover:bg-teal-50 transition-colors">Đặt lịch tái khám</button>
+                                    <button @@click="openBooking(@activeTreat.PatientTreatmentId)" class="flex-1 py-3 rounded-xl border-2 border-brand-primary text-brand-primary font-bold hover:bg-teal-50 transition-colors">Đặt lịch tái khám</button>
                                     <button @@click="tab='treatments'" class="flex-1 py-3 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-colors">Xem chi tiết phác đồ</button>
                                 </div>
                             </div>
@@ -377,8 +377,12 @@
                 </div>
                 <div class="p-8 text-center space-y-5">
                     <div class="text-5xl">📅</div>
-                    <p class="text-slate-700 font-medium">Chọn dịch vụ, bác sĩ và khung giờ phù hợp với bạn.</p>
-                    <a href="/Patient/Book"
+                    <!-- Show treatment context if rebooking from a package -->
+                    <div v-if="bookingTreatmentId" class="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3 text-sm text-teal-800 font-semibold">
+                        💊 Buổi tái khám này sẽ được tính vào gói liệu trình của bạn
+                    </div>
+                    <p v-else class="text-slate-700 font-medium">Chọn dịch vụ, bác sĩ và khung giờ phù hợp với bạn.</p>
+                    <a :href="bookingTreatmentId ? `/Patient/Book?treatmentId=${bookingTreatmentId}` : '/Patient/Book'"
                        class="block w-full py-3 bg-brand-primary text-white rounded-2xl font-bold hover:bg-brand-hover shadow-md transition-colors">
                         Đặt lịch ngay →
                     </a>
@@ -398,7 +402,13 @@ createApp({
     setup() {
         const tab = ref('overview');
         const bookingOpen = ref(false);
+        const bookingTreatmentId = ref(null); // null = general booking; number = rebooking for a treatment
         const invoices = ref([]);
+
+        const openBooking = (treatmentId = null) => {
+            bookingTreatmentId.value = treatmentId;
+            bookingOpen.value = true;
+        };
 
         const loadInvoices = async () => {
             try {
@@ -409,7 +419,7 @@ createApp({
         };
 
         onMounted(() => loadInvoices());
-        return { tab, bookingOpen, invoices };
+        return { tab, bookingOpen, bookingTreatmentId, openBooking, invoices };
     }
 }).mount('#app');
 </script>

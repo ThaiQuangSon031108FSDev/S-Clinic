@@ -193,27 +193,175 @@ public static class DbSeeder
             await db.SaveChangesAsync();
         }
 
-        // 7. DASHBOARD DEMO (TODAY / FUTURE APPOINTMENTS)
-        var todaySchedules = schedules.Where(s => s.WorkDate == new DateOnly(2026, 3, 27)).ToList();
-        foreach (var patient in pts)
+        // 8. TODAY'S BOARD: some Pending + Completed (cashier queue) appointments
+        var boardDate  = DateOnly.FromDateTime(DateTime.Today);
+        var boardSlots = schedules.Where(s => s.WorkDate == boardDate).ToList();
+        if (!boardSlots.Any())
         {
-            var freeSlot = todaySchedules.FirstOrDefault(s => s.CurrentBooked < s.MaxPatients);
-            if (freeSlot != null)
+            // If board date is beyond seeded range, grab any future slot
+            boardSlots = schedules.Where(s => s.WorkDate > boardDate).Take(6).ToList();
+        }
+    }
+
+    // ── Seed future schedules so there are always bookable slots ───────────────
+    public static async Task SeedFutureSchedules(ApplicationDbContext db)
+    {
+        var today   = DateOnly.FromDateTime(DateTime.Today);
+        var endDate = today.AddDays(30);
+
+        // Get all doctors
+        var docs = await db.Doctors.ToListAsync();
+        if (!docs.Any()) return;
+
+        // Build list of needed (doctorId, date, timeslot) combinations not already in DB
+        var existingKeys = await db.DoctorSchedules
+            .Where(s => s.WorkDate >= today && s.WorkDate <= endDate)
+            .Select(s => new { s.DoctorId, s.WorkDate, s.TimeSlot })
+            .ToListAsync();
+
+        var existingSet = existingKeys
+            .Select(x => $"{x.DoctorId}_{x.WorkDate}_{x.TimeSlot}")
+            .ToHashSet();
+
+        var timeSlots = new[]
+        {
+            new TimeOnly(8,  0), new TimeOnly(8,  30),
+            new TimeOnly(9,  0), new TimeOnly(9,  30),
+            new TimeOnly(10, 0), new TimeOnly(10, 30),
+            new TimeOnly(13, 30), new TimeOnly(14, 0),
+            new TimeOnly(14, 30), new TimeOnly(15, 0),
+            new TimeOnly(15, 30), new TimeOnly(16, 0),
+            new TimeOnly(16, 30), new TimeOnly(17, 0),
+        };
+
+        var newSchedules = new List<DoctorSchedule>();
+        for (var d = today; d <= endDate; d = d.AddDays(1))
+        {
+            if (d.DayOfWeek == DayOfWeek.Sunday) continue;  // closed Sunday
+
+            foreach (var doc in docs)
             {
-                freeSlot.CurrentBooked++;
-                var baseService = services[rnd.Next(services.Count)];
-                
-                var appt = new Appointment
+                foreach (var ts in timeSlots)
                 {
-                    PatientId = patient.PatientId,
-                    ScheduleId = freeSlot.ScheduleId,
-                    ServiceId = baseService.ServiceId,
-                    Status = AppointmentStatus.Confirmed,
-                    Notes = "Đặt lịch từ hệ thống"
-                };
-                db.Appointments.Add(appt);
-                await db.SaveChangesAsync();
+                    var key = $"{doc.DoctorId}_{d}_{ts}";
+                    if (!existingSet.Contains(key))
+                    {
+                        newSchedules.Add(new DoctorSchedule
+                        {
+                            DoctorId       = doc.DoctorId,
+                            WorkDate       = d,
+                            TimeSlot       = ts,
+                            MaxPatients    = 2,
+                            CurrentBooked  = 0
+                        });
+                    }
+                }
             }
         }
+
+        if (newSchedules.Any())
+        {
+            db.DoctorSchedules.AddRange(newSchedules);
+            await db.SaveChangesAsync();
+        }
+
+        // Also seed some future demo appointments for TODAY so the dashboard has data
+        var todaySchedules = await db.DoctorSchedules
+            .Where(s => s.WorkDate == today && s.CurrentBooked < s.MaxPatients)
+            .Take(5)
+            .ToListAsync();
+
+        var patients = await db.Patients.Take(5).ToListAsync();
+        var services = await db.Services.Take(3).ToListAsync();
+        if (!patients.Any() || !services.Any() || !todaySchedules.Any()) return;
+
+        // Only add today demo appointments if none exist yet for today
+        var hasTodayAppts = await db.Appointments
+            .AnyAsync(a => a.Schedule != null && a.Schedule.WorkDate == today);
+        if (hasTodayAppts) return;
+
+        var rnd = new Random();
+        for (int i = 0; i < Math.Min(patients.Count, todaySchedules.Count); i++)
+        {
+            todaySchedules[i].CurrentBooked++;
+            db.Appointments.Add(new Appointment
+            {
+                PatientId  = patients[i].PatientId,
+                ScheduleId = todaySchedules[i].ScheduleId,
+                ServiceId  = services[rnd.Next(services.Count)].ServiceId,
+                Status     = i == 0 ? AppointmentStatus.Confirmed : AppointmentStatus.Pending,
+                Notes      = "Đặt lịch demo"
+            });
+        }
+        await db.SaveChangesAsync();
+    }
+
+    // ── Seed treatment packages if none exist ──────────────────────────────────
+    public static async Task SeedTreatmentPackages(ApplicationDbContext db)
+    {
+        if (await db.TreatmentPackages.AnyAsync()) return;
+
+        db.TreatmentPackages.AddRange(
+            new TreatmentPackage { PackageName = "Gói Trị Mụn Cơ Bản (5 buổi)",     TotalSessions = 5,  Price = 2_500_000m },
+            new TreatmentPackage { PackageName = "Gói Trị Nám Chuyên Sâu (8 buổi)",  TotalSessions = 8,  Price = 5_600_000m },
+            new TreatmentPackage { PackageName = "Gói Phục Hồi Da (10 buổi)",         TotalSessions = 10, Price = 7_000_000m },
+            new TreatmentPackage { PackageName = "Gói Trẻ Hóa Da Premium (12 buổi)", TotalSessions = 12, Price = 9_600_000m },
+            new TreatmentPackage { PackageName = "Gói Sẹo Rỗ Laser (6 buổi)",        TotalSessions = 6,  Price = 4_200_000m }
+        );
+        await db.SaveChangesAsync();
+    }
+
+    // ── Seed demo PatientTreatment records for test accounts ──────────────────
+    public static async Task SeedDemoPatientTreatments(ApplicationDbContext db)
+    {
+        // Skip if already seeded
+        if (await db.PatientTreatments.AnyAsync()) return;
+
+        var packages = await db.TreatmentPackages.Take(3).ToListAsync();
+        var doctors  = await db.Doctors.Take(2).ToListAsync();
+        var patients = await db.Patients.Take(3).ToListAsync();
+
+        if (!packages.Any() || !doctors.Any() || !patients.Any()) return;
+
+        // Patient 0 (Thái Quang Sơn): 1 active package, đã dùng 2 buổi
+        db.PatientTreatments.Add(new PatientTreatment
+        {
+            PatientId       = patients[0].PatientId,
+            PackageId       = packages[0].PackageId,
+            PrimaryDoctorId = doctors[0].DoctorId,
+            TotalSessions   = packages[0].TotalSessions,
+            UsedSessions    = 2,
+            Status          = TreatmentStatus.Active
+        });
+
+        // Patient 1 (Nguyễn Khánh Ly): 1 active package, mới bắt đầu
+        if (patients.Count >= 2 && packages.Count >= 2)
+        {
+            db.PatientTreatments.Add(new PatientTreatment
+            {
+                PatientId       = patients[1].PatientId,
+                PackageId       = packages[1].PackageId,
+                PrimaryDoctorId = doctors.Count >= 2 ? doctors[1].DoctorId : doctors[0].DoctorId,
+                TotalSessions   = packages[1].TotalSessions,
+                UsedSessions    = 1,
+                Status          = TreatmentStatus.Active
+            });
+        }
+
+        // Patient 2: 1 package đã hoàn thành (để test hiển thị history)
+        if (patients.Count >= 3 && packages.Count >= 3)
+        {
+            db.PatientTreatments.Add(new PatientTreatment
+            {
+                PatientId       = patients[2].PatientId,
+                PackageId       = packages[2].PackageId,
+                PrimaryDoctorId = doctors[0].DoctorId,
+                TotalSessions   = packages[2].TotalSessions,
+                UsedSessions    = packages[2].TotalSessions,
+                Status          = TreatmentStatus.Completed
+            });
+        }
+
+        await db.SaveChangesAsync();
     }
 }
