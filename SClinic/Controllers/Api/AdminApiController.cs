@@ -16,24 +16,26 @@ public class AdminApiController(ApplicationDbContext db) : ControllerBase
     {
         var staffRoles = new[] { "Doctor", "Receptionist", "Cashier" };
 
-        var accounts = await db.Accounts
+        var raw = await db.Accounts
             .Include(a => a.Role)
             .Include(a => a.Doctor)
             .Where(a => staffRoles.Contains(a.Role.RoleName))
             .OrderBy(a => a.Role.RoleName)
             .ThenBy(a => a.Doctor != null ? a.Doctor.FullName : a.Email)
-            .Select(a => new
-            {
-                a.AccountId,
-                a.Email,
-                a.IsActive,
-                Role      = a.Role.RoleName,
-                FullName  = a.Doctor != null ? a.Doctor.FullName : a.Email,
-                Specialty = a.Doctor != null ? a.Doctor.Specialty : null,
-            })
             .ToListAsync();
 
-        return Ok(accounts);
+        var result = raw.Select(a => new
+        {
+            a.AccountId,
+            a.Email,
+            a.IsActive,
+            Role      = a.Role.RoleName,
+            // Doctor profile → FullName; others → part before @ in email
+            FullName  = a.Doctor?.FullName ?? a.Email.Split('@')[0],
+            Specialty = a.Doctor?.Specialty,
+        });
+
+        return Ok(result);
     }
 
     // ── POST /api/admin/staff — tạo tài khoản nhân sự ────────────────────────
@@ -153,6 +155,138 @@ public class AdminApiController(ApplicationDbContext db) : ControllerBase
             .ToListAsync();
 
         return Ok(list);
+    }
+
+    // ── GET /api/admin/top-services — dịch vụ & gói bán chạy ────────────────
+    [HttpGet("top-services")]
+    public async Task<IActionResult> TopServices()
+    {
+        // Count InvoiceDetails per Service
+        var services = await db.InvoiceDetails
+            .Where(d => d.ItemType == InvoiceItemType.Service && d.ServiceId != null)
+            .GroupBy(d => d.ServiceId)
+            .Select(g => new
+            {
+                Id    = g.Key,
+                Count = g.Sum(x => x.Quantity),
+                Type  = "Dịch vụ lẻ"
+            })
+            .ToListAsync();
+
+        var serviceNames = await db.Services
+            .Where(s => services.Select(x => x.Id).Contains(s.ServiceId))
+            .ToDictionaryAsync(s => (int?)s.ServiceId, s => s.ServiceName);
+
+        // Count InvoiceDetails per Package
+        var packages = await db.InvoiceDetails
+            .Where(d => d.ItemType == InvoiceItemType.Package && d.PackageId != null)
+            .GroupBy(d => d.PackageId)
+            .Select(g => new
+            {
+                Id    = g.Key,
+                Count = g.Sum(x => x.Quantity),
+                Type  = "Gói liệu trình"
+            })
+            .ToListAsync();
+
+        var packageNames = await db.TreatmentPackages
+            .Where(p => packages.Select(x => x.Id).Contains(p.PackageId))
+            .ToDictionaryAsync(p => (int?)p.PackageId, p => p.PackageName);
+
+        var combined = services
+            .Select(s => new {
+                Name  = serviceNames.GetValueOrDefault(s.Id, "—"),
+                s.Type,
+                s.Count
+            })
+            .Concat(packages.Select(p => new {
+                Name  = packageNames.GetValueOrDefault(p.Id, "—"),
+                p.Type,
+                p.Count
+            }))
+            .OrderByDescending(x => x.Count)
+            .Take(5)
+            .ToList();
+
+        return Ok(combined);
+    }
+
+    // ── GET /api/admin/doctor-stats — hiệu suất bác sĩ tháng này ────────────
+    [HttpGet("doctor-stats")]
+    public async Task<IActionResult> DoctorStats()
+    {
+        var firstDay  = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        var firstDayO = DateOnly.FromDateTime(firstDay);
+
+        // Count completed appointments per doctor this month
+        var apptCounts = await db.Appointments
+            .Where(a => a.Status == AppointmentStatus.Completed
+                     && a.Schedule != null
+                     && a.Schedule.WorkDate >= firstDayO)
+            .GroupBy(a => a.Schedule!.DoctorId)
+            .Select(g => new { DoctorId = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        // Sum invoices linked to medical records by doctor this month
+        var revenues = await db.Invoices
+            .Where(i => i.PaymentStatus == PaymentStatus.Paid
+                     && i.Record != null
+                     && i.CreatedDate >= firstDay)
+            .Include(i => i.Record)
+            .GroupBy(i => i.Record!.DoctorId)
+            .Select(g => new { DoctorId = g.Key, Revenue = g.Sum(x => x.TotalAmount) })
+            .ToListAsync();
+
+        var doctors = await db.Doctors
+            .Select(d => new { d.DoctorId, d.FullName })
+            .ToListAsync();
+
+        var result = doctors
+            .Select(d => new
+            {
+                d.DoctorId,
+                d.FullName,
+                AppointmentCount = apptCounts.FirstOrDefault(a => a.DoctorId == d.DoctorId)?.Count ?? 0,
+                Revenue          = revenues.FirstOrDefault(r => r.DoctorId == d.DoctorId)?.Revenue ?? 0m
+            })
+            .Where(d => d.AppointmentCount > 0 || d.Revenue > 0)
+            .OrderByDescending(d => d.AppointmentCount)
+            .Take(5)
+            .ToList();
+
+        return Ok(result);
+    }
+
+    // ── GET /api/admin/kpi-stats — KPI lễ tân & thu ngân tháng này ──────────
+    [HttpGet("kpi-stats")]
+    public async Task<IActionResult> KpiStats()
+    {
+        var firstDay  = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        var firstDayO = DateOnly.FromDateTime(firstDay);
+
+        var patientsThisMonth = await db.Patients
+            .CountAsync();  // total registered patients (no CreatedAt on Patient)
+
+        var appointmentsThisMonth = await db.Appointments
+            .Where(a => a.Schedule != null && a.Schedule.WorkDate >= firstDayO)
+            .CountAsync();
+
+        var invoicesPaid = await db.Invoices
+            .Where(i => i.PaymentStatus == PaymentStatus.Paid && i.CreatedDate >= firstDay)
+            .CountAsync();
+
+        var invoicesTotal = await db.Invoices
+            .Where(i => i.CreatedDate >= firstDay)
+            .CountAsync();
+
+        return Ok(new
+        {
+            PatientsTotal      = patientsThisMonth,
+            AppointmentsMonth  = appointmentsThisMonth,
+            InvoicesPaid       = invoicesPaid,
+            InvoicesTotal      = invoicesTotal,
+            CollectionRate     = invoicesTotal > 0 ? (int)Math.Round((double)invoicesPaid / invoicesTotal * 100) : 0
+        });
     }
 }
 

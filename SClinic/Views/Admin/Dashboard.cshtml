@@ -52,103 +52,63 @@
     <!-- Top Services -->
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
         <h3 class="text-lg font-bold text-slate-800 mb-6">🥇 Dịch vụ & Gói Liệu Trình Bán Chạy</h3>
-        <ul class="space-y-4">
-            <li class="flex justify-between items-center pb-3 border-b border-slate-100">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold text-xs">1</div>
-                    <div>
-                        <p class="text-sm font-bold text-slate-800">Trị mụn y khoa</p>
-                        <p class="text-xs text-slate-500">Gói 10 buổi</p>
+        <div id="top-services-app">
+            <div v-if="loading" class="text-slate-400 text-sm text-center py-6">⏳ Đang tải…</div>
+            <div v-else-if="items.length === 0" class="text-slate-400 text-sm text-center py-6">Chưa có dữ liệu.</div>
+            <ul v-else class="space-y-4">
+                <li v-for="(item, i) in items" :key="i" class="flex justify-between items-center pb-3 border-b border-slate-100 last:border-0 last:pb-0">
+                    <div class="flex items-center gap-3">
+                        <div :class="[
+                            'w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs',
+                            i===0?'bg-brand-primary/10 text-brand-primary':i===1?'bg-slate-100 text-slate-600':'bg-amber-50 text-amber-600'
+                        ]">[[ i+1 ]]</div>
+                        <div>
+                            <p class="text-sm font-bold text-slate-800">[[ item.name ]]</p>
+                            <p class="text-xs text-slate-500">[[ item.type ]]</p>
+                        </div>
                     </div>
-                </div>
-                <div class="text-right">
-                    <p class="text-sm font-extrabold text-brand-primary">45</p>
-                    <p class="text-xs text-slate-400">lượt bán</p>
-                </div>
-            </li>
-            <li class="flex justify-between items-center pb-3 border-b border-slate-100">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-xs">2</div>
-                    <div>
-                        <p class="text-sm font-bold text-slate-800">Khám soi da 3D</p>
-                        <p class="text-xs text-slate-500">Dịch vụ lẻ</p>
+                    <div class="text-right">
+                        <p class="text-sm font-extrabold" :class="i===0?'text-brand-primary':'text-slate-800'">[[ item.count ]]</p>
+                        <p class="text-xs text-slate-400">lượt bán</p>
                     </div>
-                </div>
-                <div class="text-right">
-                    <p class="text-sm font-bold text-slate-800">32</p>
-                    <p class="text-xs text-slate-400">lượt bán</p>
-                </div>
-            </li>
-            <li class="flex justify-between items-center pb-3 border-b border-slate-100">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xs">3</div>
-                    <div>
-                        <p class="text-sm font-bold text-slate-800">Nâng cơ trẻ hóa</p>
-                        <p class="text-xs text-slate-500">Gói Premium</p>
-                    </div>
-                </div>
-                <div class="text-right">
-                    <p class="text-sm font-bold text-slate-800">18</p>
-                    <p class="text-xs text-slate-400">lượt bán</p>
-                </div>
-            </li>
-            <li class="flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-red-50 text-red-600 flex items-center justify-center font-bold text-xs">4</div>
-                    <div>
-                        <p class="text-sm font-bold text-slate-800">Peel da hóa học</p>
-                        <p class="text-xs text-slate-500">Dịch vụ lẻ</p>
-                    </div>
-                </div>
-                <div class="text-right">
-                    <p class="text-sm font-bold text-slate-800">15</p>
-                    <p class="text-xs text-slate-400">lượt bán</p>
-                </div>
-            </li>
-        </ul>
+                </li>
+            </ul>
+        </div>
     </div>
 </div>
 
 <!-- Detailed Stats Row 2 -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12" id="stats-app">
     <!-- Doctor Performance -->
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
         <div class="p-5 border-b border-slate-100 flex justify-between items-center">
             <h3 class="font-bold text-slate-800">👨‍⚕️ Hiệu Suất Bác Sĩ Tháng Này</h3>
-            <span class="text-xs text-brand-primary font-bold cursor-pointer hover:underline">Xem chi tiết</span>
         </div>
-        <table class="w-full text-left text-sm">
+        <div v-if="doctorLoading" class="p-8 text-center text-slate-400">⏳ Đang tải…</div>
+        <div v-else-if="doctors.length === 0" class="p-8 text-center text-slate-400">Chưa có dữ liệu tháng này.</div>
+        <table v-else class="w-full text-left text-sm">
             <thead class="bg-slate-50/50 text-slate-500 text-xs">
                 <tr>
                     <th class="p-4 font-semibold">Tên Bác Sĩ</th>
-                    <th class="p-4 font-semibold text-center">Số Ca Khám</th>
-                    <th class="p-4 font-semibold text-right">Doanh Thu Tạo Ra</th>
+                    <th class="p-4 font-semibold text-center">Số Ca</th>
+                    <th class="p-4 font-semibold text-right">Doanh Thu</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="p-4 font-bold text-slate-800 flex items-center gap-3">
-                        <img src="https://ui-avatars.com/api/?name=Bs.+Le+Thi+B&background=0f766e&color=fff&size=32" class="rounded-full w-8 h-8" />
-                        Bs. Lê Thị B <span class="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded ml-2">Top 1</span>
+                <tr v-for="(d, i) in doctors" :key="d.doctorId" class="hover:bg-slate-50 transition-colors">
+                    <td class="p-4 font-bold text-slate-800">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary font-bold text-sm">
+                                [[ d.fullName.charAt(0) ]]
+                            </div>
+                            [[ d.fullName ]]
+                            <span v-if="i===0" class="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded ml-1">Top 1</span>
+                        </div>
                     </td>
-                    <td class="p-4 text-center font-medium text-slate-600">124</td>
-                    <td class="p-4 text-right font-bold text-brand-primary">152,000,000đ</td>
-                </tr>
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="p-4 font-bold text-slate-800 flex items-center gap-3">
-                        <img src="https://ui-avatars.com/api/?name=Bs.+Nguyen+Van+C&background=334155&color=fff&size=32" class="rounded-full w-8 h-8" />
-                        Bs. Nguyễn Văn C
+                    <td class="p-4 text-center font-medium text-slate-600">[[ d.appointmentCount ]]</td>
+                    <td class="p-4 text-right font-bold" :class="i===0?'text-brand-primary':'text-slate-700'">
+                        [[ d.revenue.toLocaleString('vi-VN') ]]đ
                     </td>
-                    <td class="p-4 text-center font-medium text-slate-600">98</td>
-                    <td class="p-4 text-right font-medium text-slate-700">110,500,000đ</td>
-                </tr>
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="p-4 font-bold text-slate-800 flex items-center gap-3">
-                        <img src="https://ui-avatars.com/api/?name=Bs.+Tran+Thi+D&background=334155&color=fff&size=32" class="rounded-full w-8 h-8" />
-                        Bs. Trần Thị D
-                    </td>
-                    <td class="p-4 text-center font-medium text-slate-600">82</td>
-                    <td class="p-4 text-right font-medium text-slate-700">95,800,000đ</td>
                 </tr>
             </tbody>
         </table>
@@ -156,32 +116,32 @@
 
     <!-- Staff KPIs -->
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
-        <div class="p-5 border-b border-slate-100 flex justify-between items-center">
-            <h3 class="font-bold text-slate-800">👥 KPI Thao Tác - Lễ Tân & Thu Ngân</h3>
-            <span class="text-xs text-brand-primary font-bold cursor-pointer hover:underline">Xem tất cả lệnh</span>
+        <div class="p-5 border-b border-slate-100">
+            <h3 class="font-bold text-slate-800">👥 KPI Tháng Này</h3>
         </div>
-        <div class="p-6 grid grid-cols-2 gap-6">
+        <div v-if="kpiLoading" class="p-8 text-center text-slate-400">⏳ Đang tải…</div>
+        <div v-else class="p-6 grid grid-cols-2 gap-6">
             <div class="space-y-4">
                 <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100 border-l-4 border-l-blue-500">
-                    <p class="text-xs text-blue-800 font-bold mb-1 uppercase tracking-wider">Hồ Sơ Đã Tạo</p>
-                    <h4 class="text-2xl font-extrabold text-slate-900">432 <span class="text-sm font-normal text-slate-500 mb-1 inline-block">Bệnh nhân</span></h4>
-                    <p class="text-xs text-slate-500 mt-2">Bởi Lễ tân trong tháng này.</p>
+                    <p class="text-xs text-blue-800 font-bold mb-1 uppercase tracking-wider">Tổng Bệnh Nhân</p>
+                    <h4 class="text-2xl font-extrabold text-slate-900">[[ kpi.patientsTotal ]] <span class="text-sm font-normal text-slate-500">người</span></h4>
+                    <p class="text-xs text-slate-500 mt-2">Tổng hồ sơ trong hệ thống</p>
                 </div>
                 <div class="bg-amber-50/50 p-4 rounded-xl border border-amber-100 border-l-4 border-l-amber-500">
-                    <p class="text-xs text-amber-800 font-bold mb-1 uppercase tracking-wider">Lịch Hẹn Set-up</p>
-                    <h4 class="text-2xl font-extrabold text-slate-900">510 <span class="text-sm font-normal text-slate-500 mb-1 inline-block">Lượt</span></h4>
-                    <p class="text-xs text-slate-500 mt-2">Bởi Lễ tân trong tháng này.</p>
+                    <p class="text-xs text-amber-800 font-bold mb-1 uppercase tracking-wider">Lịch Hẹn Tháng</p>
+                    <h4 class="text-2xl font-extrabold text-slate-900">[[ kpi.appointmentsMonth ]] <span class="text-sm font-normal text-slate-500">lượt</span></h4>
+                    <p class="text-xs text-slate-500 mt-2">Tất cả lịch trong tháng này</p>
                 </div>
             </div>
-            <div class="space-y-4">
-                <div class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 border-l-4 border-l-emerald-500 flex h-full flex-col justify-center relative">
-                    <div class="absolute top-4 right-4 bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-[10px] font-bold">Thu Ngân</div>
-                    <p class="text-xs text-emerald-800 font-bold mb-1 uppercase tracking-wider">Hóa Đơn Xử Lý</p>
-                    <h4 class="text-3xl font-extrabold text-slate-900 text-emerald-700">388 <span class="text-base font-normal text-slate-500">HĐ</span></h4>
+            <div>
+                <div class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 border-l-4 border-l-emerald-500 h-full flex flex-col justify-center">
+                    <div class="absolute-0 top-4 right-4"></div>
+                    <p class="text-xs text-emerald-800 font-bold mb-1 uppercase tracking-wider">Hóa Đơn Đã Thu</p>
+                    <h4 class="text-3xl font-extrabold text-emerald-700">[[ kpi.invoicesPaid ]] <span class="text-base font-normal text-slate-500">HĐ</span></h4>
                     <div class="w-full bg-emerald-200 rounded-full h-1.5 mt-4 mb-2">
-                        <div class="bg-emerald-600 h-1.5 rounded-full w-[92%]"></div>
+                        <div class="bg-emerald-600 h-1.5 rounded-full transition-all" :style="{width: kpi.collectionRate + '%'}"></div>
                     </div>
-                    <p class="text-xs text-slate-500 font-medium">Hoàn thành 92% tỉ lệ nộp quỹ</p>
+                    <p class="text-xs text-slate-500 font-medium">Tỷ lệ thu: [[ kpi.collectionRate ]]% ([[ kpi.invoicesTotal ]] tổng)</p>
                 </div>
             </div>
         </div>
@@ -251,5 +211,50 @@
             document.getElementById('range-select').addEventListener('change', e => loadChart(e.target.value));
             loadChart('week');
         });
+
+        // ── Top Services Vue app ──────────────────────────────────────────────
+        const { createApp: ca1, ref: r1, onMounted: om1 } = Vue;
+        ca1({
+            delimiters: ['[[',']]'],
+            setup() {
+                const items   = r1([]);
+                const loading = r1(true);
+                om1(async () => {
+                    try {
+                        const res = await fetch('/api/admin/top-services');
+                        items.value = await res.json();
+                    } catch { items.value = []; }
+                    loading.value = false;
+                });
+                return { items, loading };
+            }
+        }).mount('#top-services-app');
+
+        // ── Stats Vue app (doctor perf + KPI) ────────────────────────────────
+        const { createApp: ca2, ref: r2, onMounted: om2 } = Vue;
+        ca2({
+            delimiters: ['[[',']]'],
+            setup() {
+                const doctors       = r2([]);
+                const doctorLoading = r2(true);
+                const kpi           = r2({ patientsTotal:0, appointmentsMonth:0, invoicesPaid:0, invoicesTotal:0, collectionRate:0 });
+                const kpiLoading    = r2(true);
+
+                om2(async () => {
+                    try {
+                        const [drRes, kpiRes] = await Promise.all([
+                            fetch('/api/admin/doctor-stats'),
+                            fetch('/api/admin/kpi-stats'),
+                        ]);
+                        doctors.value = await drRes.json();
+                        kpi.value     = await kpiRes.json();
+                    } catch { /* silent */ }
+                    doctorLoading.value = false;
+                    kpiLoading.value    = false;
+                });
+
+                return { doctors, doctorLoading, kpi, kpiLoading };
+            }
+        }).mount('#stats-app');
     </script>
 }

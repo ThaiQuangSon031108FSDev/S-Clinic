@@ -68,8 +68,9 @@
                 </a>
                 <!-- Full-page nav links -->
                 <div class="border-t border-slate-100 my-2"></div>
-                <a href="/Patient/History"
-                   class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-slate-600 hover:bg-slate-50 font-medium">
+                <a href="#" @@click.prevent="tab='history'"
+                   :class="tab==='history'?'bg-teal-50 text-brand-primary font-semibold':'text-slate-600 hover:bg-slate-50 font-medium'"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors">
                     🩺 Lịch sử Y tế
                 </a>
                 <a href="/Patient/Book"
@@ -373,6 +374,108 @@
                     </div>
                 </div>
 
+                <!-- ── HISTORY TAB ────────────────────────────────────────── -->
+                <div v-else-if="tab==='history'" key="history">
+                    <h2 class="text-2xl font-bold text-slate-900 mb-6">🩺 Lịch sử Y tế</h2>
+
+                    <!-- Search -->
+                    <div class="mb-5">
+                        <input v-model="historySearch" type="text"
+                               placeholder="Tìm theo bác sĩ, chẩn đoán, dịch vụ…"
+                               class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                    </div>
+
+                    <!-- Loading -->
+                    <div v-if="historyLoading" class="text-center py-16 text-slate-400">
+                        <div class="text-4xl mb-2">⏳</div><p>Đang tải…</p>
+                    </div>
+
+                    <!-- Empty -->
+                    <div v-else-if="filteredHistory.length === 0"
+                         class="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                        <p class="text-slate-400">Chưa có hồ sơ khám nào.</p>
+                    </div>
+
+                    <!-- Records -->
+                    <div v-else class="space-y-4">
+                        <div v-for="rec in filteredHistory" :key="rec.recordId"
+                             class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+
+                            <!-- Header row -->
+                            <div class="p-5 flex items-start justify-between gap-4">
+                                <div class="flex items-start gap-4">
+                                    <div class="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-xl flex-shrink-0">🩺</div>
+                                    <div>
+                                        <p class="font-bold text-slate-900">[[ rec.doctorName ]]</p>
+                                        <p class="text-xs text-slate-500 mt-0.5">📅 [[ rec.examDate ]] · [[ rec.serviceName || 'Khám tổng quát' ]]</p>
+                                        <p v-if="rec.diagnosis" class="text-sm text-slate-700 mt-1.5">
+                                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Chẩn đoán: </span>[[ rec.diagnosis ]]
+                                        </p>
+                                    </div>
+                                </div>
+                                <button @@click="rec._open = !rec._open"
+                                        class="flex-shrink-0 text-brand-primary text-xs font-bold border border-brand-primary/30 px-3 py-1.5 rounded-lg hover:bg-teal-50 transition-colors">
+                                    [[ rec._open ? 'Thu gọn ▲' : 'Chi tiết ▼' ]]
+                                </button>
+                            </div>
+
+                            <!-- Expanded -->
+                            <div v-if="rec._open" class="border-t border-slate-100 divide-y divide-slate-100">
+
+                                <!-- Tình trạng da / Ghi chú bác sĩ -->
+                                <div v-if="rec.skinCondition" class="p-5">
+                                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">📋 Tình trạng & Ghi chú bác sĩ</p>
+                                    <p class="text-sm text-slate-700 leading-relaxed italic">[[ rec.skinCondition ]]</p>
+                                </div>
+
+                                <!-- Ảnh Before/After -->
+                                <div v-if="rec.sessionImages && rec.sessionImages.length" class="p-5">
+                                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">📸 Ảnh buổi điều trị</p>
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                        <a v-for="(url, i) in rec.sessionImages" :key="i"
+                                           :href="url" target="_blank">
+                                            <img :src="url" class="w-full h-28 object-cover rounded-xl border border-slate-100 hover:scale-105 transition-transform" />
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <!-- Đơn thuốc -->
+                                <div v-if="rec.prescriptions && rec.prescriptions.length" class="p-5">
+                                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">💊 Đơn thuốc</p>
+                                    <div class="space-y-2">
+                                        <div v-for="rx in rec.prescriptions" :key="rx.medicineId"
+                                             class="flex justify-between items-center text-sm">
+                                            <span class="font-semibold text-slate-800">[[ rx.medicineName ]]</span>
+                                            <span class="text-xs font-bold text-slate-500">SL: [[ rx.quantity ]]</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Hóa đơn -->
+                                <div v-if="rec.invoice" class="p-5">
+                                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">🧾 Hóa đơn</p>
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="font-extrabold text-brand-primary text-lg">[[ Number(rec.invoice.total).toLocaleString('vi-VN') ]]đ</p>
+                                            <p class="text-xs text-slate-400 mt-0.5">HĐ #[[ rec.invoice.invoiceId ]] · [[ rec.invoice.date ]]</p>
+                                        </div>
+                                        <span :class="rec.invoice.status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
+                                              class="text-xs font-bold px-3 py-1.5 rounded-full">
+                                            [[ rec.invoice.status === 'Paid' ? '✅ Đã thanh toán' : '⏳ Chờ thanh toán' ]]
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Nếu không có gì thêm -->
+                                <div v-if="!rec.skinCondition && !rec.sessionImages?.length && !rec.prescriptions?.length && !rec.invoice"
+                                     class="p-5 text-sm text-slate-400 italic">
+                                    Chưa có thông tin chi tiết buổi khám này.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </transition>
         </div>
     </main>
@@ -406,14 +509,47 @@
 
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script>
-const { createApp, ref, onMounted } = Vue;
+const { createApp, ref, computed, onMounted, watch } = Vue;
 createApp({
     delimiters: ['[[',']]'],
     setup() {
         const tab = ref('overview');
         const bookingOpen = ref(false);
-        const bookingTreatmentId = ref(null); // null = general booking; number = rebooking for a treatment
+        const bookingTreatmentId = ref(null);
         const invoices = ref([]);
+
+        // ── History state ─────────────────────────────────
+        const historyRecords  = ref([]);
+        const historyLoading  = ref(false);
+        const historyLoaded   = ref(false);
+        const historySearch   = ref('');
+
+        const filteredHistory = computed(() => {
+            const q = historySearch.value.trim().toLowerCase();
+            return historyRecords.value.filter(r =>
+                !q ||
+                (r.doctorName  || '').toLowerCase().includes(q) ||
+                (r.diagnosis   || '').toLowerCase().includes(q) ||
+                (r.serviceName || '').toLowerCase().includes(q) ||
+                (r.skinCondition || '').toLowerCase().includes(q)
+            );
+        });
+
+        const loadHistory = async () => {
+            if (historyLoaded.value) return;
+            historyLoading.value = true;
+            try {
+                const res  = await fetch('/api/patient/medical-history');
+                const data = await res.json();
+                historyRecords.value = data.map(r => ({ ...r, _open: false }));
+                historyLoaded.value = true;
+            } catch { historyRecords.value = []; }
+            historyLoading.value = false;
+        };
+
+        // Lazy load history on first visit
+        watch(tab, val => { if (val === 'history') loadHistory(); });
+        // ─────────────────────────────────────────────────
 
         const openBooking = (treatmentId = null) => {
             bookingTreatmentId.value = treatmentId;
@@ -429,7 +565,10 @@ createApp({
         };
 
         onMounted(() => loadInvoices());
-        return { tab, bookingOpen, bookingTreatmentId, openBooking, invoices };
+        return {
+            tab, bookingOpen, bookingTreatmentId, openBooking, invoices,
+            historyRecords, historyLoading, historySearch, filteredHistory,
+        };
     }
 }).mount('#app');
 </script>

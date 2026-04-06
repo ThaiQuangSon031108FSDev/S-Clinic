@@ -183,34 +183,54 @@ public class PatientController(ApplicationDbContext db, IBookingService booking,
                 .ThenInclude(a => a!.Service)
             .Include(r => r.Appointment)
                 .ThenInclude(a => a!.Schedule)
+            .Include(r => r.Appointment)
+                .ThenInclude(a => a!.PatientTreatment)
+                    .ThenInclude(pt => pt!.SessionLogs)
+                        .ThenInclude(l => l.SessionImages)
             .Include(r => r.Invoice)
                 .ThenInclude(inv => inv!.InvoiceDetails)
                     .ThenInclude(d => d.Medicine)
+            .Include(r => r.Invoice)
+                .ThenInclude(inv => inv!.InvoiceDetails)
+                    .ThenInclude(d => d.Service)
             .Where(r => r.Appointment != null && r.Appointment.PatientId == patient.PatientId)
             .OrderByDescending(r => r.RecordDate)
             .ToListAsync();
 
-        var result = records.Select(r => new {
-            RecordId    = r.RecordId,
-            ExamDate    = r.RecordDate.ToString("dd/MM/yyyy HH:mm"),
-            DoctorName  = r.Doctor?.FullName ?? "—",
-            ServiceName = r.Appointment?.Service?.ServiceName,
-            Diagnosis   = r.Diagnosis,
-            SkinNote    = r.SkinCondition,
-            Prescriptions = r.Invoice?.InvoiceDetails
-                .Where(d => d.Medicine != null)
-                .Select(d => new {
-                    MedicineId   = d.Medicine!.MedicineId,
-                    MedicineName = d.Medicine.MedicineName,
-                    Quantity     = d.Quantity,
-                    Dosage       = (string?)null
-                }) ?? Enumerable.Empty<object>().Cast<dynamic>(),
-            Invoice = r.Invoice != null ? new {
-                r.Invoice.InvoiceId,
-                Total  = r.Invoice.TotalAmount,
-                Date   = r.Invoice.CreatedDate.ToString("dd/MM/yyyy"),
-                Status = r.Invoice.PaymentStatus.ToString()
-            } : null
+        var result = records.Select(r =>
+        {
+            // Collect session images linked to this appointment's treatment session log
+            var sessionImages = r.Appointment?.PatientTreatment?.SessionLogs
+                .OrderByDescending(l => l.UsedDate)
+                .FirstOrDefault()?
+                .SessionImages
+                .Select(img => img.ImageUrl)
+                .ToList() ?? [];
+
+            return new
+            {
+                RecordId      = r.RecordId,
+                ExamDate      = r.RecordDate.ToString("dd/MM/yyyy HH:mm"),
+                DoctorName    = r.Doctor?.FullName ?? "—",
+                ServiceName   = r.Appointment?.Service?.ServiceName,
+                Diagnosis     = r.Diagnosis,
+                SkinCondition = r.SkinCondition,
+                SessionImages = sessionImages,
+                Prescriptions = r.Invoice?.InvoiceDetails
+                    .Where(d => d.Medicine != null)
+                    .Select(d => new {
+                        MedicineId   = d.Medicine!.MedicineId,
+                        MedicineName = d.Medicine.MedicineName,
+                        Quantity     = d.Quantity,
+                        Dosage       = (string?)null
+                    }) ?? [],
+                Invoice = r.Invoice != null ? new {
+                    r.Invoice.InvoiceId,
+                    Total  = r.Invoice.TotalAmount,
+                    Date   = r.Invoice.CreatedDate.ToString("dd/MM/yyyy"),
+                    Status = r.Invoice.PaymentStatus.ToString()
+                } : null
+            };
         });
 
         return Ok(result);

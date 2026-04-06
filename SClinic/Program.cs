@@ -161,13 +161,11 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // ── Routes ─────────────────────────────────────────────────────────────────
-// MapControllers() enables [ApiController] attribute-routed endpoints
+// MapControllers() handles all [ApiController] attribute-routed endpoints
+// (e.g. [Route("api/admin")], [Route("api/treatments")], etc.)
 app.MapControllers();
 
-app.MapControllerRoute(
-    name: "api",
-    pattern: "api/{controller}/{action=Index}/{id?}");
-
+// Default MVC convention route for Razor views
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
