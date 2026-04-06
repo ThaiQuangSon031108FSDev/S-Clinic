@@ -51,4 +51,12 @@ public class AdminController(ApplicationDbContext db) : Controller
         ViewData["Title"] = "Kho thuốc";
         return View();
     }
+
+    // GET /Admin/Staff — Admin only
+    [Authorize(Roles = "Admin")]
+    public IActionResult Staff()
+    {
+        ViewData["Title"] = "Nhân sự";
+        return View();
+    }
 }

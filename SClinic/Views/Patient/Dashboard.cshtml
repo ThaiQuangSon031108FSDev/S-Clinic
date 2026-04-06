@@ -56,15 +56,25 @@
                    class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors">
                     💊 Liệu trình &amp; Dịch vụ
                 </a>
+                <a href="#" @@click.prevent="tab='invoices'"
+                   :class="tab==='invoices'?'bg-teal-50 text-brand-primary font-semibold':'text-slate-600 hover:bg-slate-50 font-medium'"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors">
+                    🧾 Hóa đơn của tôi
+                </a>
                 <a href="#" @@click.prevent="tab='profile'"
                    :class="tab==='profile'?'bg-teal-50 text-brand-primary font-semibold':'text-slate-600 hover:bg-slate-50 font-medium'"
                    class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors">
                     👤 Hồ sơ cá nhân
                 </a>
-                <a href="#" @@click.prevent="tab='invoices'"
-                   :class="tab==='invoices'?'bg-teal-50 text-brand-primary font-semibold':'text-slate-600 hover:bg-slate-50 font-medium'"
-                   class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors">
-                    🧾 Hóa đơn của tôi
+                <!-- Full-page nav links -->
+                <div class="border-t border-slate-100 my-2"></div>
+                <a href="/Patient/History"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-slate-600 hover:bg-slate-50 font-medium">
+                    🩺 Lịch sử Y tế
+                </a>
+                <a href="/Patient/Book"
+                   class="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 font-semibold">
+                    + Đặt lịch mới
                 </a>
             </nav>
         </div>

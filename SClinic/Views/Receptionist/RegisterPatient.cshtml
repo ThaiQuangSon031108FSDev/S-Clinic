@@ -3,7 +3,8 @@
     Layout = "~/Views/Shared/_StaffLayout.cshtml";
 }
 
-<div id="app" class="max-w-2xl mx-auto">
+<style>[v-cloak]{display:none!important}</style>
+<div id="app" v-cloak class="max-w-2xl mx-auto">
     <!-- Step indicator -->
     <div class="flex items-center gap-2 mb-8">
         <div v-for="(s, i) in steps" :key="i" class="flex items-center gap-2">

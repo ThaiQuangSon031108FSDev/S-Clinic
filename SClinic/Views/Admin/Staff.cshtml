@@ -1,0 +1,263 @@
+@{
+    ViewData["Title"] = "Nhân sự";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+<style>[v-cloak]{display:none!important}</style>
+<div id="app" v-cloak>
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-extrabold text-slate-900">👥 Quản lý Nhân sự</h1>
+            <p class="text-slate-500 text-sm mt-1">Thêm, cập nhật, vô hiệu hóa tài khoản nội bộ</p>
+        </div>
+        <button @@click="openCreate"
+                class="px-4 py-2 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover transition-colors shadow-sm">
+            + Thêm nhân sự
+        </button>
+    </div>
+
+    <!-- Filter tabs -->
+    <div class="flex gap-2 mb-6">
+        <button v-for="r in ['Tất cả','Doctor','Receptionist','Cashier']" :key="r"
+                @@click="filterRole = r"
+                :class="filterRole === r ? 'bg-brand-primary text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:border-brand-primary/50'"
+                class="px-4 py-2 rounded-xl text-sm font-semibold transition-all">
+            [[ r ]]
+        </button>
+        <div class="flex-1"></div>
+        <input v-model="search" type="text" placeholder="Tìm tên hoặc email..."
+               class="border border-slate-200 rounded-xl px-4 py-2 text-sm w-64 focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+    </div>
+
+    <!-- Staff table -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <tr>
+                    <th class="px-5 py-3.5 text-left font-semibold">Nhân viên</th>
+                    <th class="px-5 py-3.5 text-left font-semibold">Email</th>
+                    <th class="px-5 py-3.5 text-left font-semibold">Vai trò</th>
+                    <th class="px-5 py-3.5 text-left font-semibold">Chuyên khoa</th>
+                    <th class="px-5 py-3.5 text-left font-semibold">Trạng thái</th>
+                    <th class="px-5 py-3.5 text-right font-semibold">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                <tr v-if="filteredStaff.length === 0">
+                    <td colspan="6" class="text-center py-12 text-slate-400">Không có nhân sự nào</td>
+                </tr>
+                <tr v-for="s in filteredStaff" :key="s.accountId"
+                    class="hover:bg-slate-50 transition-colors">
+                    <td class="px-5 py-3.5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-brand-primary/10 flex items-center justify-center font-bold text-brand-primary text-sm">
+                                [[ s.fullName.charAt(0) ]]
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-900">[[ s.fullName ]]</p>
+                                <p class="text-[11px] text-slate-400">#[[ s.accountId ]]</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-5 py-3.5 text-slate-600">[[ s.email ]]</td>
+                    <td class="px-5 py-3.5">
+                        <span :class="{
+                            'bg-teal-100 text-teal-800':   s.role === 'Doctor',
+                            'bg-blue-100 text-blue-800':   s.role === 'Receptionist',
+                            'bg-amber-100 text-amber-800': s.role === 'Cashier',
+                        }" class="text-[11px] font-bold px-2.5 py-1 rounded-full">[[ s.role ]]</span>
+                    </td>
+                    <td class="px-5 py-3.5 text-slate-500 text-[12px]">[[ s.specialty || '—' ]]</td>
+                    <td class="px-5 py-3.5">
+                        <span :class="s.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'"
+                              class="text-[11px] font-bold px-2.5 py-1 rounded-full">
+                            [[ s.isActive ? 'Hoạt động' : 'Vô hiệu' ]]
+                        </span>
+                    </td>
+                    <td class="px-5 py-3.5 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                            <button @@click="openEdit(s)"
+                                    class="text-xs font-bold text-slate-600 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">
+                                Sửa
+                            </button>
+                            <button @@click="toggleActive(s)"
+                                    :class="s.isActive ? 'text-red-600 border-red-200 hover:bg-red-50' : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'"
+                                    class="text-xs font-bold border px-3 py-1.5 rounded-lg transition-colors">
+                                [[ s.isActive ? 'Vô hiệu hóa' : 'Kích hoạt' ]]
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div v-if="modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <div class="p-6 border-b border-slate-100">
+                <h2 class="text-lg font-bold text-slate-900">[[ editMode ? 'Cập nhật nhân sự' : 'Thêm nhân sự mới' ]]</h2>
+                <p class="text-xs text-slate-400 mt-0.5">[[ editMode ? 'Cập nhật thông tin tài khoản' : 'Hệ thống tự tạo tài khoản & hồ sơ chuyên môn' ]]</p>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Họ và tên *</label>
+                        <input v-model="form.fullName" type="text" placeholder="Nguyễn Văn A"
+                               class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Email *</label>
+                        <input v-model="form.email" type="email" placeholder="bs.a@sclinic.vn"
+                               :disabled="editMode"
+                               class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none disabled:bg-slate-50 disabled:text-slate-400" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Vai trò *</label>
+                        <select v-model="form.role" :disabled="editMode"
+                                class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none disabled:bg-slate-50">
+                            <option value="">-- Chọn vai trò --</option>
+                            <option value="Doctor">Doctor — Bác sĩ</option>
+                            <option value="Receptionist">Receptionist — Lễ tân</option>
+                            <option value="Cashier">Cashier — Thu ngân</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                            [[ editMode ? 'Mật khẩu mới (để trống = giữ nguyên)' : 'Mật khẩu tạm *' ]]
+                        </label>
+                        <input v-model="form.password" type="password" placeholder="Tối thiểu 6 ký tự"
+                               class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                    </div>
+                </div>
+
+                <!-- Doctor-specific fields -->
+                <div v-if="form.role === 'Doctor'" class="bg-teal-50 p-4 rounded-xl border border-teal-100 space-y-3">
+                    <p class="text-xs font-bold text-teal-700 uppercase tracking-wider">Hồ sơ chuyên môn Bác sĩ</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Chuyên khoa *</label>
+                            <input v-model="form.specialty" type="text" placeholder="Da liễu thẩm mỹ"
+                                   class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none bg-white" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Số năm kinh nghiệm</label>
+                            <input v-model.number="form.yearsExp" type="number" min="0" placeholder="5"
+                                   class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none bg-white" />
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Bằng cấp / Chứng chỉ</label>
+                        <input v-model="form.qualification" type="text" placeholder="Thạc sĩ Y khoa, ĐHYD TP.HCM"
+                               class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none bg-white" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Giới thiệu ngắn</label>
+                        <textarea v-model="form.bio" rows="2" placeholder="Chuyên điều trị mụn trứng cá, nám, lão hóa..."
+                                  class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none resize-none bg-white"></textarea>
+                    </div>
+                </div>
+
+                <p v-if="formError" class="text-xs text-red-500">⚠️ [[ formError ]]</p>
+            </div>
+            <div class="flex justify-end gap-3 p-6 pt-0">
+                <button @@click="modal=false"
+                        class="px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">
+                    Hủy
+                </button>
+                <button @@click="saveStaff" :disabled="saving"
+                        class="px-5 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover shadow-sm disabled:opacity-50">
+                    <span v-if="saving">Đang lưu...</span>
+                    <span v-else>[[ editMode ? 'Cập nhật' : '+ Tạo tài khoản' ]]</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const { createApp, ref, computed, onMounted } = Vue;
+createApp({
+    delimiters: ['[[',']]'],
+    setup() {
+        const staff      = ref([]);
+        const filterRole = ref('Tất cả');
+        const search     = ref('');
+        const modal      = ref(false);
+        const editMode   = ref(false);
+        const saving     = ref(false);
+        const formError  = ref('');
+
+        const emptyForm = () => ({
+            accountId: 0, fullName: '', email: '', role: '', password: '',
+            specialty: '', yearsExp: 0, qualification: '', bio: ''
+        });
+        const form = ref(emptyForm());
+
+        const load = async () => {
+            try {
+                const res  = await fetch('/api/admin/staff');
+                staff.value = await res.json();
+            } catch { staff.value = []; }
+        };
+        onMounted(load);
+
+        const filteredStaff = computed(() => {
+            let list = staff.value;
+            if (filterRole.value !== 'Tất cả') list = list.filter(s => s.role === filterRole.value);
+            if (search.value.trim()) {
+                const q = search.value.toLowerCase();
+                list = list.filter(s => s.fullName.toLowerCase().includes(q) || s.email.toLowerCase().includes(q));
+            }
+            return list;
+        });
+
+        const openCreate = () => { form.value = emptyForm(); editMode.value = false; formError.value = ''; modal.value = true; };
+        const openEdit   = (s) => {
+            form.value = { ...s, password: '' };
+            editMode.value = true; formError.value = ''; modal.value = true;
+        };
+
+        const saveStaff = async () => {
+            formError.value = '';
+            if (!form.value.fullName.trim()) { formError.value = 'Vui lòng nhập họ tên.'; return; }
+            if (!form.value.email.trim())    { formError.value = 'Vui lòng nhập email.'; return; }
+            if (!form.value.role)            { formError.value = 'Vui lòng chọn vai trò.'; return; }
+            if (!editMode.value && form.value.password.length < 6) { formError.value = 'Mật khẩu tối thiểu 6 ký tự.'; return; }
+            if (form.value.role === 'Doctor' && !form.value.specialty.trim()) { formError.value = 'Vui lòng nhập chuyên khoa.'; return; }
+
+            saving.value = true;
+            try {
+                const url    = editMode.value ? `/api/admin/staff/${form.value.accountId}` : '/api/admin/staff';
+                const method = editMode.value ? 'PUT' : 'POST';
+                const res    = await fetch(url, {
+                    method, headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(form.value)
+                });
+                const data = await res.json();
+                if (data.success) { modal.value = false; await load(); }
+                else formError.value = data.message || 'Lỗi lưu dữ liệu.';
+            } catch { formError.value = 'Lỗi kết nối server.'; }
+            saving.value = false;
+        };
+
+        const toggleActive = async (s) => {
+            if (!confirm(`${s.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'} tài khoản ${s.fullName}?`)) return;
+            try {
+                const res  = await fetch(`/api/admin/staff/${s.accountId}/toggle`, { method: 'PATCH' });
+                const data = await res.json();
+                if (data.success) s.isActive = !s.isActive;
+            } catch { alert('Lỗi thao tác.'); }
+        };
+
+        return { staff, filteredStaff, filterRole, search, modal, editMode, saving, form, formError,
+                 openCreate, openEdit, saveStaff, toggleActive };
+    }
+}).mount('#app');
+</script>
+}

@@ -44,6 +44,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWRtaW5cSW52ZW50b3J5LmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
+[D:/FPT/Spring 2026/Block2/NET202/ASM/SClinic/Views/Admin/Staff.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWRtaW5cU3RhZmYuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
 [D:/FPT/Spring 2026/Block2/NET202/ASM/SClinic/Views/Doctor/MedicalRecord.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcRG9jdG9yXE1lZGljYWxSZWNvcmQuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
@@ -70,6 +74,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [D:/FPT/Spring 2026/Block2/NET202/ASM/SClinic/Views/Patient/Dashboard.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUGF0aWVudFxEYXNoYm9hcmQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/FPT/Spring 2026/Block2/NET202/ASM/SClinic/Views/Patient/History.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUGF0aWVudFxIaXN0b3J5LmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
 [D:/FPT/Spring 2026/Block2/NET202/ASM/SClinic/Views/Patient/Treatments.cshtml]

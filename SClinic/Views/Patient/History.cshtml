@@ -1,0 +1,145 @@
+@{
+    ViewData["Title"] = "Lịch sử y tế";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-teal-50/30 pt-28 pb-16 px-4">
+    <div class="max-w-4xl mx-auto">
+        <div class="mb-8">
+            <h1 class="text-3xl font-extrabold text-slate-900">🩺 Lịch sử Y tế</h1>
+            <p class="text-slate-500 text-sm mt-1">Toàn bộ hồ sơ khám chữa bệnh, đơn thuốc và hóa đơn của bạn</p>
+        </div>
+
+        <div id="app">
+            <!-- Filter bar -->
+            <div class="flex items-center gap-3 mb-6">
+                <div class="flex bg-white border border-slate-200 rounded-xl p-1 gap-1">
+                    <button v-for="f in ['Tất cả','Hồ sơ khám','Đơn thuốc','Hóa đơn']" :key="f"
+                            @@click="activeTab = f"
+                            :class="activeTab === f ? 'bg-brand-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'"
+                            class="px-4 py-2 rounded-lg text-sm font-semibold transition-all">
+                        [[ f ]]
+                    </button>
+                </div>
+                <input v-model="searchQ" type="text" placeholder="Tìm theo bác sĩ, chẩn đoán..."
+                       class="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none bg-white" />
+            </div>
+
+            <!-- Loading -->
+            <div v-if="loading" class="text-center py-20 text-slate-400">
+                <div class="text-4xl mb-3">⏳</div>
+                <p class="font-semibold">Đang tải lịch sử...</p>
+            </div>
+
+            <!-- Empty -->
+            <div v-else-if="filteredRecords.length === 0 && !loading" class="text-center py-20 text-slate-400">
+                <div class="text-5xl mb-3">📋</div>
+                <p class="font-semibold text-base">Chưa có hồ sơ nào</p>
+                <p class="text-sm mt-1">Hồ sơ khám sẽ hiển thị ở đây sau buổi khám đầu tiên</p>
+            </div>
+
+            <!-- Records list -->
+            <div v-else class="space-y-4">
+                <div v-for="rec in filteredRecords" :key="rec.recordId"
+                     class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md">
+                    <!-- Record header -->
+                    <div class="p-5 flex items-start justify-between">
+                        <div class="flex items-start gap-4">
+                            <div class="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center text-brand-primary text-lg flex-shrink-0">🩺</div>
+                            <div>
+                                <p class="font-bold text-slate-900">[[ rec.doctorName ]]</p>
+                                <p class="text-xs text-slate-500 mt-0.5">📅 [[ rec.examDate ]] · [[ rec.serviceName || 'Khám tổng quát' ]]</p>
+                                <p v-if="rec.diagnosis" class="text-sm text-slate-700 mt-2 font-medium">
+                                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Chẩn đoán: </span>
+                                    [[ rec.diagnosis ]]
+                                </p>
+                            </div>
+                        </div>
+                        <button @@click="rec._open = !rec._open"
+                                class="text-brand-primary text-xs font-bold border border-brand-primary/30 px-3 py-1.5 rounded-lg hover:bg-teal-50 transition-colors flex-shrink-0">
+                            [[ rec._open ? 'Thu gọn ▲' : 'Chi tiết ▼' ]]
+                        </button>
+                    </div>
+
+                    <!-- Expanded detail -->
+                    <div v-if="rec._open" class="border-t border-slate-100">
+                        <!-- Prescription -->
+                        <div v-if="rec.prescriptions && rec.prescriptions.length" class="p-5 border-b border-slate-100">
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">💊 Đơn thuốc</p>
+                            <div class="space-y-2">
+                                <div v-for="rx in rec.prescriptions" :key="rx.medicineId"
+                                     class="flex justify-between items-center text-sm">
+                                    <div>
+                                        <span class="font-semibold text-slate-800">[[ rx.medicineName ]]</span>
+                                        <span class="text-xs text-slate-400 ml-2">[[ rx.dosage ]]</span>
+                                    </div>
+                                    <span class="text-xs font-bold text-slate-500">SL: [[ rx.quantity ]]</span>
+                                </div>
+                            </div>
+                            <p v-if="rec.notes" class="text-xs text-slate-500 mt-3 italic">📝 Ghi chú: [[ rec.notes ]]</p>
+                        </div>
+
+                        <!-- Invoice -->
+                        <div v-if="rec.invoice" class="p-5">
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">🧾 Hóa đơn thanh toán</p>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-extrabold text-brand-primary text-lg">[[ Number(rec.invoice.total).toLocaleString('vi-VN') ]]đ</p>
+                                    <p class="text-xs text-slate-400 mt-0.5">HĐ #[[ rec.invoice.invoiceId ]] · [[ rec.invoice.date ]]</p>
+                                </div>
+                                <span :class="rec.invoice.status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
+                                      class="text-xs font-bold px-3 py-1.5 rounded-full">
+                                    [[ rec.invoice.status === 'Paid' ? '✅ Đã thanh toán' : '⏳ Chờ thanh toán' ]]
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- No prescription note -->
+                        <div v-if="!rec.prescriptions?.length && !rec.invoice" class="p-5 text-sm text-slate-400 italic">
+                            Chưa có đơn thuốc và hóa đơn
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const { createApp, ref, computed, onMounted } = Vue;
+createApp({
+    delimiters: ['[[',']]'],
+    setup() {
+        const records   = ref([]);
+        const loading   = ref(true);
+        const activeTab = ref('Tất cả');
+        const searchQ   = ref('');
+
+        onMounted(async () => {
+            try {
+                const res  = await fetch('/api/patient/medical-history');
+                const data = await res.json();
+                records.value = data.map(r => ({ ...r, _open: false }));
+            } catch { records.value = []; }
+            loading.value = false;
+        });
+
+        const filteredRecords = computed(() => {
+            let list = records.value;
+            if (searchQ.value.trim()) {
+                const q = searchQ.value.toLowerCase();
+                list = list.filter(r =>
+                    (r.doctorName || '').toLowerCase().includes(q) ||
+                    (r.diagnosis  || '').toLowerCase().includes(q) ||
+                    (r.serviceName || '').toLowerCase().includes(q)
+                );
+            }
+            return list;
+        });
+
+        return { records, filteredRecords, loading, activeTab, searchQ };
+    }
+}).mount('#app');
+</script>
+}

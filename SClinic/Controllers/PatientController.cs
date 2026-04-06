@@ -161,6 +161,60 @@ public class PatientController(ApplicationDbContext db, IBookingService booking,
 
         return Ok(result);
     }
+
+    // GET /Patient/History
+    public IActionResult History()
+    {
+        ViewData["Title"] = "Lịch sử y tế";
+        return View();
+    }
+
+    // GET /api/patient/medical-history — full medical timeline
+    [HttpGet("/api/patient/medical-history")]
+    public async Task<IActionResult> MedicalHistory()
+    {
+        var accountId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        var patient   = await db.Patients.FirstOrDefaultAsync(p => p.AccountId == accountId);
+        if (patient is null) return Ok(Array.Empty<object>());
+
+        var records = await db.MedicalRecords
+            .Include(r => r.Doctor)
+            .Include(r => r.Appointment)
+                .ThenInclude(a => a!.Service)
+            .Include(r => r.Appointment)
+                .ThenInclude(a => a!.Schedule)
+            .Include(r => r.Invoice)
+                .ThenInclude(inv => inv!.InvoiceDetails)
+                    .ThenInclude(d => d.Medicine)
+            .Where(r => r.Appointment != null && r.Appointment.PatientId == patient.PatientId)
+            .OrderByDescending(r => r.RecordDate)
+            .ToListAsync();
+
+        var result = records.Select(r => new {
+            RecordId    = r.RecordId,
+            ExamDate    = r.RecordDate.ToString("dd/MM/yyyy HH:mm"),
+            DoctorName  = r.Doctor?.FullName ?? "—",
+            ServiceName = r.Appointment?.Service?.ServiceName,
+            Diagnosis   = r.Diagnosis,
+            SkinNote    = r.SkinCondition,
+            Prescriptions = r.Invoice?.InvoiceDetails
+                .Where(d => d.Medicine != null)
+                .Select(d => new {
+                    MedicineId   = d.Medicine!.MedicineId,
+                    MedicineName = d.Medicine.MedicineName,
+                    Quantity     = d.Quantity,
+                    Dosage       = (string?)null
+                }) ?? Enumerable.Empty<object>().Cast<dynamic>(),
+            Invoice = r.Invoice != null ? new {
+                r.Invoice.InvoiceId,
+                Total  = r.Invoice.TotalAmount,
+                Date   = r.Invoice.CreatedDate.ToString("dd/MM/yyyy"),
+                Status = r.Invoice.PaymentStatus.ToString()
+            } : null
+        });
+
+        return Ok(result);
+    }
 }
 
 public record BookRequest(int DoctorId, int? ServiceId, string Date, string Time, string? Note, int PatientTreatmentId = 0);

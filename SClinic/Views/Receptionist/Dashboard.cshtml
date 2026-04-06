@@ -3,7 +3,8 @@
     Layout = "~/Views/Shared/_StaffLayout.cshtml";
 }
 
-<div id="app">
+<style>[v-cloak]{display:none!important}</style>
+<div id="app" v-cloak>
     <!-- Check-in box -->
     <div class="bg-white border border-teal-200 rounded-2xl px-5 py-4 mb-5 flex items-center gap-4 shadow-sm">
         <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl flex-shrink-0">📋</div>
@@ -18,7 +19,7 @@
                     📣 Gọi vào
                 </button>
             </div>
-            <p v-if="checkinMsg" :class="checkinOk ? 'text-teal-700' : 'text-red-600'" class="text-xs font-semibold mt-1.5">{{ checkinMsg }}</p>
+            <p v-if="checkinMsg" :class="checkinOk ? 'text-teal-700' : 'text-red-600'" class="text-xs font-semibold mt-1.5">[[ checkinMsg ]]</p>
         </div>
     </div>
 
