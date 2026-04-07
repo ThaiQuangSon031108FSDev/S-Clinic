@@ -1,199 +1,680 @@
 @{
-    ViewData["Title"] = "Đặt lịch hẹn";
+    ViewData["Title"] = "Lịch hẹn";
     Layout = "~/Views/Shared/_StaffLayout.cshtml";
+    var todayStr = DateTime.Today.ToString("yyyy-MM-dd");
 }
 
-<div id="app">
-    <!-- Toolbar -->
+<style>[v-cloak]{display:none!important}</style>
+<div id="app" v-cloak>
+
+    <!-- ── Toolbar ──────────────────────────────────────────────────────── -->
     <div class="flex flex-col sm:flex-row gap-3 mb-6">
-        <div class="flex gap-2">
-            <select v-model="filter" class="border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-brand-primary focus:outline-none">
-                <option value="all">Tất cả trạng thái</option>
-                <option value="pending">Chờ khám</option>
-                <option value="confirmed">Đã xác nhận</option>
-                <option value="completed">Hoàn tất</option>
-            </select>
-            <select v-model="timeFilter" class="border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-brand-primary focus:outline-none">
-                <option value="all">Tất cả thời gian</option>
-                <option value="1">Hôm nay (1 ngày)</option>
-                <option value="7">Trong vòng 7 ngày</option>
-                <option value="30">Trong vòng 30 ngày</option>
-                <option value="60">Trong vòng 60 ngày</option>
-                <option value="90">Trong vòng 90 ngày</option>
-            </select>
+        <!-- Date picker — default today -->
+        <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-500 uppercase">Ngày</label>
+            <input type="date" v-model="dateFilter"
+                   class="border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+            <button @@click="dateFilter = todayStr"
+                    class="text-xs font-bold text-brand-primary border border-brand-primary/30 px-3 py-2 rounded-lg hover:bg-teal-50 transition-colors">
+                Hôm nay
+            </button>
+            <button @@click="dateFilter = ''"
+                    class="text-xs font-bold text-slate-500 border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors">
+                Tất cả
+            </button>
         </div>
-        <div class="flex sm:ml-auto gap-2">
-            <input type="text" v-model="search" placeholder="Tìm tên bệnh nhân, bác sĩ..."
-                   class="text-sm border border-slate-200 rounded-lg px-4 py-2 w-56 focus:ring-2 focus:ring-brand-primary focus:outline-none bg-white" />
-            <a asp-controller="Receptionist" asp-action="RegisterPatient"
-               class="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-brand-hover transition-colors flex items-center gap-1">
-                + Đặt lịch mới
-            </a>
-        </div>
+
+        <!-- Doctor filter -->
+        <select v-model="doctorFilter"
+                class="border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-brand-primary focus:outline-none">
+            <option value="">Tất cả bác sĩ</option>
+            <option v-for="d in doctors" :key="d.doctorId" :value="d.doctorId">[[ d.fullName ]]</option>
+        </select>
+
+        <!-- Status filter -->
+        <select v-model="statusFilter"
+                class="border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-brand-primary focus:outline-none">
+            <option value="">Tất cả trạng thái</option>
+            <option value="Pending">Chờ xác nhận</option>
+            <option value="Confirmed">Đã xác nhận</option>
+            <option value="Completed">Hoàn tất</option>
+            <option value="Cancelled">Đã huỷ</option>
+        </select>
+
+        <!-- Search -->
+        <input type="text" v-model="search" placeholder="Tìm tên, SĐT, bác sĩ..."
+               class="flex-1 min-w-0 text-sm border border-slate-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-brand-primary focus:outline-none bg-white" />
+
+        <!-- New appointment -->
+        <button @@click="openModal"
+                class="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-brand-hover transition-colors flex items-center gap-2 flex-shrink-0 shadow-sm">
+            + Đặt lịch mới
+        </button>
     </div>
 
-    <!-- Stats row -->
+    <!-- ── Stats ────────────────────────────────────────────────────────── -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
-            <p class="text-2xl font-extrabold text-slate-900">[[ total ]]</p>
-            <p class="text-xs text-slate-500 mt-1">Tổng lịch hẹn</p>
+            <p class="text-2xl font-extrabold text-slate-900">[[ displayed.length ]]</p>
+            <p class="text-xs text-slate-500 mt-1">Đang hiển thị</p>
         </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
-            <p class="text-2xl font-extrabold text-amber-600">[[ pendingCount ]]</p>
-            <p class="text-xs text-slate-500 mt-1">Chờ khám</p>
+        <div class="bg-white p-4 rounded-xl border border-amber-100 shadow-sm text-center border-l-4 border-l-amber-400">
+            <p class="text-2xl font-extrabold text-amber-600">[[ appts.filter(a=>a.status==='Pending').length ]]</p>
+            <p class="text-xs text-slate-500 mt-1">Chờ xác nhận</p>
         </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
-            <p class="text-2xl font-extrabold text-blue-600">[[ confirmedCount ]]</p>
-            <p class="text-xs text-slate-500 mt-1">Xác nhận</p>
+        <div class="bg-white p-4 rounded-xl border border-blue-100 shadow-sm text-center border-l-4 border-l-blue-400">
+            <p class="text-2xl font-extrabold text-blue-600">[[ appts.filter(a=>a.status==='Confirmed').length ]]</p>
+            <p class="text-xs text-slate-500 mt-1">Đã xác nhận</p>
         </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
-            <p class="text-2xl font-extrabold text-emerald-600">[[ completedCount ]]</p>
+        <div class="bg-white p-4 rounded-xl border border-emerald-100 shadow-sm text-center border-l-4 border-l-emerald-400">
+            <p class="text-2xl font-extrabold text-emerald-600">[[ appts.filter(a=>a.status==='Completed').length ]]</p>
             <p class="text-xs text-slate-500 mt-1">Hoàn tất</p>
         </div>
     </div>
 
-    <!-- Table -->
+    <!-- ── Table ─────────────────────────────────────────────────────────── -->
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <table class="w-full text-left">
-            <thead>
-                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
-                    <th class="px-6 py-4 font-semibold">Mã LH</th>
-                    <th class="px-6 py-4 font-semibold">Bệnh nhân</th>
-                    <th class="px-6 py-4 font-semibold">Bác sĩ</th>
-                    <th class="px-6 py-4 font-semibold">Ngày & Giờ</th>
-                    <th class="px-6 py-4 font-semibold">Trạng thái</th>
-                    <th class="px-6 py-4 font-semibold text-right">Thao tác</th>
+        <!-- Loading -->
+        <div v-if="loading" class="py-16 text-center text-slate-400">
+            <div class="text-3xl mb-2">⏳</div><p class="text-sm">Đang tải...</p>
+        </div>
+
+        <table v-else class="w-full text-left text-sm">
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                <tr>
+                    <th class="px-5 py-3.5 font-semibold">Mã LH</th>
+                    <th class="px-5 py-3.5 font-semibold">Bệnh nhân</th>
+                    <th class="px-5 py-3.5 font-semibold">Bác sĩ</th>
+                    <th class="px-5 py-3.5 font-semibold">Ngày & Giờ</th>
+                    <th class="px-5 py-3.5 font-semibold">Dịch vụ</th>
+                    <th class="px-5 py-3.5 font-semibold">Trạng thái</th>
+                    <th class="px-5 py-3.5 font-semibold text-right">Thao tác</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-                <tr v-for="a in displayed" :key="a.id"
-                    class="hover:bg-slate-50 transition-colors">
-                    <td class="px-6 py-4 font-mono text-xs text-slate-400 font-bold">#APT-[[ String(a.id).padStart(4,'0') ]]</td>
-                    <td class="px-6 py-4">
-                        <p class="text-sm font-bold text-slate-900">[[ a.patient ]]</p>
-                        <p class="text-xs text-slate-400">[[ a.phone ]]</p>
-                    </td>
-                    <td class="px-6 py-4 text-sm text-slate-700">[[ a.doctor ]]</td>
-                    <td class="px-6 py-4">
-                        <p class="text-sm font-bold text-slate-800">[[ a.date ]]</p>
-                        <p class="text-xs text-slate-400">[[ a.time ]]</p>
-                    </td>
-                    <td class="px-6 py-4">
-                        <span :class="{
-                            'bg-amber-100 text-amber-700':  a.status==='Pending',
-                            'bg-blue-100 text-blue-700':    a.status==='Confirmed',
-                            'bg-green-100 text-green-700':  a.status==='Completed',
-                            'bg-red-100 text-red-700':      a.status==='Cancelled'
-                        }" class="text-xs font-bold px-3 py-1 rounded-full">
-                            [[ {Pending:'Chờ khám',Confirmed:'Xác nhận',Completed:'Hoàn tất',Cancelled:'Huỷ'}[a.status] || a.status ]]
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 text-right">
-                        <button @@click="confirm(a)" v-if="a.status==='Pending'"
-                                class="text-blue-600 hover:text-blue-800 text-xs font-bold mr-2">Xác nhận</button>
-                        <button @@click="cancel(a)" v-if="['Pending','Confirmed'].includes(a.status)"
-                                class="text-red-400 hover:text-red-600 text-xs font-bold">Huỷ</button>
-                        <span v-if="a.status==='Completed'" class="text-xs text-slate-300">—</span>
+                <tr v-if="displayed.length === 0">
+                    <td colspan="7" class="px-5 py-12 text-center text-slate-400">
+                        Không có lịch hẹn nào{{ dateFilter ? ' trong ngày này' : '' }}.
                     </td>
                 </tr>
-                <tr v-if="!displayed.length">
-                    <td colspan="6" class="px-6 py-12 text-center text-slate-400">Không có lịch hẹn nào.</td>
-                </tr>
+
+                <template v-for="a in displayed" :key="a.id">
+                    <!-- Main row -->
+                    <tr class="hover:bg-slate-50/70 transition-colors"
+                        :class="a.status === 'Cancelled' ? 'opacity-50' : ''">
+                        <td class="px-5 py-3.5 font-mono text-xs text-slate-400 font-bold">
+                            #APT-[[ String(a.id).padStart(4,'0') ]]
+                        </td>
+                        <td class="px-5 py-3.5">
+                            <p class="font-bold text-slate-900">[[ a.patient ]]</p>
+                            <p class="text-xs text-slate-400">[[ a.phone ]]</p>
+                        </td>
+                        <td class="px-5 py-3.5 text-slate-700 font-medium">[[ a.doctor ]]</td>
+                        <td class="px-5 py-3.5">
+                            <p class="font-bold text-slate-800">[[ a.date ]]</p>
+                            <p class="text-xs text-slate-400">🕐 [[ a.time ]]</p>
+                        </td>
+                        <td class="px-5 py-3.5 text-slate-500 text-xs">[[ a.service || '—' ]]</td>
+                        <td class="px-5 py-3.5">
+                            <span :class="{
+                                'bg-amber-100 text-amber-700':  a.status==='Pending',
+                                'bg-blue-100 text-blue-700':    a.status==='Confirmed',
+                                'bg-emerald-100 text-emerald-700': a.status==='Completed',
+                                'bg-red-100 text-red-600':      a.status==='Cancelled',
+                            }" class="text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap">
+                                [[
+                                    {Pending:'⏳ Chờ xác nhận',
+                                     Confirmed:'✅ Đã xác nhận',
+                                     Completed:'🏁 Hoàn tất',
+                                     Cancelled:'❌ Đã huỷ'}[a.status] || a.status
+                                ]]
+                            </span>
+                        </td>
+                        <td class="px-5 py-3.5 text-right">
+                            <div class="flex items-center justify-end gap-1.5 flex-wrap">
+                                <!-- Xác nhận: Pending → Confirmed -->
+                                <button v-if="a.status==='Pending'"
+                                        @@click="setStatus(a,'Confirmed')"
+                                        class="text-xs font-bold text-blue-600 border border-blue-200 px-2.5 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
+                                    Xác nhận
+                                </button>
+                                <!-- Check-in: Confirmed → Hàng đợi bác sĩ -->
+                                <button v-if="a.status==='Confirmed'"
+                                        @@click="checkIn(a)"
+                                        class="text-xs font-bold text-emerald-600 border border-emerald-200 px-2.5 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors">
+                                    ✅ Check-in
+                                </button>
+                                <!-- Dời lịch -->
+                                <button v-if="['Pending','Confirmed'].includes(a.status)"
+                                        @@click="openReschedule(a)"
+                                        class="text-xs font-bold text-amber-600 border border-amber-200 px-2.5 py-1.5 rounded-lg hover:bg-amber-50 transition-colors">
+                                    📅 Dời
+                                </button>
+                                <!-- Chuyển giao bác sĩ -->
+                                <button v-if="['Pending','Confirmed'].includes(a.status)"
+                                        @@click="openReassign(a)"
+                                        class="text-xs font-bold text-indigo-600 border border-indigo-200 px-2.5 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors">
+                                    🔄 Chuyển BS
+                                </button>
+                                <!-- Huỷ -->
+                                <button v-if="['Pending','Confirmed'].includes(a.status)"
+                                        @@click="cancelAppt(a)"
+                                        class="text-xs font-bold text-red-400 border border-red-200 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors">
+                                    Huỷ
+                                </button>
+                                <!-- Chi tiết toggle -->
+                                <button @@click="a._open = !a._open"
+                                        class="text-xs font-bold text-slate-400 border border-slate-200 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">
+                                    [[ a._open ? '▲' : '▼' ]]
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Expanded detail row -->
+                    <tr v-if="a._open">
+                        <td colspan="7" class="px-5 pb-4 pt-0">
+                            <div class="ml-4 p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm space-y-1.5">
+                                <p v-if="a.notes" class="text-slate-600">
+                                    <span class="font-bold text-slate-400 text-xs uppercase tracking-wider">📝 Ghi chú: </span>[[ a.notes ]]
+                                </p>
+                                <p v-if="a.service" class="text-slate-600">
+                                    <span class="font-bold text-slate-400 text-xs uppercase tracking-wider">🩺 Dịch vụ: </span>[[ a.service ]]
+                                </p>
+                                <p class="text-slate-600">
+                                    <span class="font-bold text-slate-400 text-xs uppercase tracking-wider">📞 SĐT: </span>[[ a.phone ]]
+                                </p>
+                                <p v-if="!a.notes && !a.service" class="text-slate-400 italic text-xs">
+                                    Không có thông tin ghi chú thêm.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                </template>
             </tbody>
         </table>
+    </div>
+
+    <!-- ── Modal: Reassign bác sĩ ────────────────────────────────────── -->
+    <div v-if="reassignModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">🔄 Chuyển giao lịch hẹn</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">BN: <b>[[ reassignModal.patient ]]</b> &bull; [[ reassignModal.date ]] [[ reassignModal.time ]]</p>
+                </div>
+                <button @@click="reassignModal=null" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-500 font-bold">✕</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Bác sĩ hiện tại</label>
+                    <p class="text-sm font-semibold text-slate-600 bg-slate-50 px-3 py-2 rounded-lg">[[ reassignModal.doctor ]]</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Chuyển sang bác sĩ *</label>
+                    <select v-model="reassignDoctorId"
+                            class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none">
+                        <option value="">-- Chọn bác sĩ --</option>
+                        <option v-for="d in doctors.filter(d=>d.doctorId !== reassignModal.doctorId)" :key="d.doctorId" :value="d.doctorId">
+                            [[ d.fullName ]]
+                        </option>
+                    </select>
+                </div>
+                <p class="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-100">
+                    ⚠️ Hệ thống kiểm tra MaxPatients của bác sĩ mới trước khi cho phép chuyển giao.
+                </p>
+                <p v-if="reassignError" class="text-xs text-red-500 font-semibold">⚠️ [[ reassignError ]]</p>
+            </div>
+            <div class="flex justify-end gap-3 p-5 pt-0">
+                <button @@click="reassignModal=null" class="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">Huỷ</button>
+                <button @@click="submitReassign" :disabled="!reassignDoctorId || reassigning"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 disabled:opacity-50">
+                    [[ reassigning ? 'Đang xử lý...' : '✓ Xác nhận chuyển giao' ]]
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Modal: Dời lịch ────────────────────────────────────────────── -->
+    <div v-if="rescheduleModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">📅 Dời lịch hẹn</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">BN: <b>[[ rescheduleModal.patient ]]</b></p>
+                </div>
+                <button @@click="rescheduleModal=null" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-500 font-bold">✕</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Ngày mới *</label>
+                        <input v-model="rescheduleDate" type="date" :min="todayStr"
+                               @@change="loadRescheduleSlots"
+                               class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Bác sĩ (giữ nguyên)</label>
+                        <p class="text-sm font-semibold text-slate-600 bg-slate-50 px-3 py-2.5 rounded-xl">[[ rescheduleModal.doctor ]]</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-2">Khung giờ mới *</label>
+                    <div v-if="!rescheduleDate" class="text-xs text-slate-400 italic">Chọn ngày trước.</div>
+                    <div v-else-if="rescheduleSlotsLoading" class="text-xs text-slate-400">⏳ Đang tải...</div>
+                    <div v-else-if="rescheduleSlots.length === 0" class="text-xs text-red-400 font-semibold">Không cón giờ trống.</div>
+                    <div v-else class="grid grid-cols-4 gap-2">
+                        <button v-for="s in rescheduleSlots" :key="s.time"
+                                @@click="rescheduleTime = s.time"
+                                :class="rescheduleTime===s.time ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-700 border-slate-200 hover:border-amber-400'"
+                                class="py-2 rounded-lg border text-xs font-bold transition-all">
+                            [[ s.time ]]
+                        </button>
+                    </div>
+                </div>
+                <p v-if="rescheduleError" class="text-xs text-red-500 font-semibold">⚠️ [[ rescheduleError ]]</p>
+            </div>
+            <div class="flex justify-end gap-3 p-5 pt-0">
+                <button @@click="rescheduleModal=null" class="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">Huỷ</button>
+                <button @@click="submitReschedule" :disabled="!rescheduleDate || !rescheduleTime || rescheduling"
+                        class="px-4 py-2 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 disabled:opacity-50">
+                    [[ rescheduling ? 'Đang lưu...' : '✓ Xác nhận dời lịch' ]]
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Modal: Đặt lịch mới ───────────────────────────────────────────── -->
+    <div v-if="showModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">➕ Đặt lịch hẹn mới</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Lịch đặt bởi Lễ tân → tự động Xác nhận</p>
+                </div>
+                <button @@click="showModal=false" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-500 font-bold">✕</button>
+            </div>
+            <div class="p-6 space-y-4">
+                <!-- Bệnh nhân -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Họ tên BN *</label>
+                        <input v-model="form.fullName" type="text" placeholder="Nguyễn Văn A"
+                               :class="formErrors.fullName ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-200'"
+                               class="w-full border rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                        <p v-if="formErrors.fullName" class="text-xs text-red-500 mt-1">⚠️ [[ formErrors.fullName ]]</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Số điện thoại *</label>
+                        <input :value="form.phone" type="tel" placeholder="09xxxxxxxx" inputmode="numeric"
+                               @@input="form.phone = $event.target.value.replace(/[^0-9]/g,'').slice(0,10)"
+                               :class="formErrors.phone ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-200'"
+                               class="w-full border rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                        <p v-if="formErrors.phone" class="text-xs text-red-500 mt-1">⚠️ [[ formErrors.phone ]]</p>
+                    </div>
+                </div>
+
+                <!-- Bác sĩ + Ngày -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Bác sĩ *</label>
+                        <select v-model="form.doctorId" @@change="loadSlots"
+                                :class="formErrors.doctorId ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-200'"
+                                class="w-full border rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none">
+                            <option value="">-- Chọn bác sĩ --</option>
+                            <option v-for="d in doctors" :key="d.doctorId" :value="d.doctorId">
+                                [[ d.fullName ]]
+                            </option>
+                        </select>
+                        <p v-if="formErrors.doctorId" class="text-xs text-red-500 mt-1">⚠️ [[ formErrors.doctorId ]]</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Ngày hẹn *</label>
+                        <input v-model="form.date" type="date" :min="todayStr" @@change="loadSlots"
+                               :class="formErrors.date ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-200'"
+                               class="w-full border rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                        <p v-if="formErrors.date" class="text-xs text-red-500 mt-1">⚠️ [[ formErrors.date ]]</p>
+                    </div>
+                </div>
+
+                <!-- Khung giờ -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-2">Chọn khung giờ *</label>
+                    <div v-if="!form.doctorId || !form.date" class="text-xs text-slate-400 italic">
+                        Chọn bác sĩ và ngày để xem giờ trống.
+                    </div>
+                    <div v-else-if="slotsLoading" class="text-xs text-slate-400">⏳ Đang tải...</div>
+                    <div v-else-if="slots.length === 0" class="text-xs text-red-400 font-semibold">
+                        Không còn giờ trống ngày này.
+                    </div>
+                    <div v-else class="grid grid-cols-4 gap-2">
+                        <button v-for="s in slots" :key="s.time"
+                                @@click="form.time = s.time"
+                                :class="form.time === s.time
+                                    ? 'bg-brand-primary text-white border-brand-primary shadow-sm'
+                                    : 'bg-white text-slate-700 border-slate-200 hover:border-brand-primary/50'"
+                                class="py-2 rounded-lg border text-xs font-bold transition-all">
+                            [[ s.time ]]
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Ghi chú -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Ghi chú / Lý do khám</label>
+                    <input v-model="form.notes" type="text" placeholder="VD: Tái khám mụn, chăm sóc da..."
+                           class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                </div>
+
+                <p v-if="formErrors.time" class="text-xs text-red-500 font-semibold">⚠️ [[ formErrors.time ]]</p>
+                <p v-if="formError" class="text-xs text-red-500 font-semibold">⚠️ [[ formError ]]</p>
+            </div>
+
+            <div class="flex justify-end gap-3 p-6 pt-0">
+                <button @@click="showModal=false"
+                        class="px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">
+                    Huỷ
+                </button>
+                <button @@click="submitAppt" :disabled="submitting"
+                        class="px-5 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover shadow-sm disabled:opacity-50">
+                    [[ submitting ? 'Đang lưu...' : '✓ Xác nhận đặt lịch' ]]
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
 @section Scripts {
 <script>
-const { createApp, ref, computed, onMounted } = Vue;
+const { createApp, ref, computed, onMounted, watch } = Vue;
 createApp({
     delimiters: ['[[',']]'],
     setup() {
-        const filter = ref('all');
-        const timeFilter = ref('all');
-        const search = ref('');
-        const appts = ref([]);
+        const todayStr   = '@todayStr';
+        const loading    = ref(true);
+        const appts      = ref([]);
+        const doctors    = ref([]);
 
-        const loadData = async () => {
-            try {
-                const res = await fetch('/api/appointmentsapi/all');
-                const data = await res.json();
-                appts.value = data.map(a => ({
-                    id: a.appointmentId,
-                    patient: a.patientName,
-                    phone: a.patientPhone,
-                    doctor: a.doctorName,
-                    date: a.date,
-                    dateIso: a.dateIso, // yyyy-mm-dd format
-                    time: a.time,
-                    status: a.status
-                }));
-            } catch (err) {
-                console.error('Failed to load appointments', err);
-            }
+        // Filters
+        const dateFilter   = ref(todayStr);  // default: today
+        const doctorFilter = ref('');
+        const statusFilter = ref('');
+        const search       = ref('');
+
+        // Modal
+        const showModal  = ref(false);
+        const submitting = ref(false);
+        const formError  = ref('');
+        const slots      = ref([]);
+        const slotsLoading = ref(false);
+        const form = ref({ fullName:'', phone:'', doctorId:'', date: todayStr, time:'', notes:'' });
+        const formErrors = ref({});
+
+        const validateForm = () => {
+            const e = {};
+            const fn = form.value.fullName.trim();
+            if (!fn)                          e.fullName = 'Vui lòng nhập họ tên.';
+            else if (fn.length < 2)           e.fullName = 'Họ tên phải ít nhất 2 ký tự.';
+            else if (/\d/.test(fn))           e.fullName = 'Họ tên không được chứa chữ số.';
+            const ph = form.value.phone.trim();
+            if (!ph)                          e.phone = 'Vui lòng nhập số điện thoại.';
+            else if (!/^0\d{9}$/.test(ph))    e.phone = 'SĐT phải đủ 10 số, bắt đầu bằng 0.';
+            if (!form.value.doctorId)         e.doctorId = 'Vui lòng chọn bác sĩ.';
+            if (!form.value.date)             e.date = 'Vui lòng chọn ngày hẹn.';
+            else if (form.value.date < todayStr) e.date = 'Không thể đặt lịch cho ngày đã qua.';
+            if (!form.value.time)             e.time = 'Vui lòng chọn khung giờ.';
+            formErrors.value = e;
+            return Object.keys(e).length === 0;
         };
 
-        onMounted(loadData);
+        // ── Load appointments ─────────────────────────────────────────────
+        const loadAppts = async () => {
+            loading.value = true;
+            try {
+                let url = '/api/appointmentsapi/all';
+                const params = new URLSearchParams();
+                if (dateFilter.value) params.set('date', dateFilter.value);
+                if (doctorFilter.value) params.set('doctorId', doctorFilter.value);
+                if (params.toString()) url += '?' + params.toString();
 
-        const total          = computed(() => appts.value.length);
-        const pendingCount   = computed(() => appts.value.filter(a => a.status==='Pending').length);
-        const confirmedCount = computed(() => appts.value.filter(a => a.status==='Confirmed').length);
-        const completedCount = computed(() => appts.value.filter(a => a.status==='Completed').length);
+                const res  = await fetch(url, { credentials: 'include' });
+                const data = await res.json();
+                appts.value = data.map(a => ({
+                    id:      a.appointmentId,
+                    patient: a.patientName,
+                    phone:   a.patientPhone ?? '—',
+                    doctor:  a.doctorName,
+                    date:    a.date,
+                    dateIso: a.dateIso,
+                    time:    a.time,
+                    status:  a.status,
+                    notes:   a.notes,
+                    service: a.serviceName,
+                    _open:   false,
+                }));
+            } catch { appts.value = []; }
+            loading.value = false;
+        };
 
+        // ── Load doctors for filter + modal ──────────────────────────────
+        const loadDoctors = async () => {
+            try {
+                const res = await fetch('/api/appointmentsapi/doctors', { credentials: 'include' });
+                if (res.ok) doctors.value = await res.json();
+            } catch {}
+        };
+
+        // ── Load time slots ───────────────────────────────────────────────
+        const loadSlots = async () => {
+            if (!form.value.doctorId || !form.value.date) return;
+            slotsLoading.value = true;
+            form.value.time = '';
+            try {
+                const res = await fetch(
+                    `/api/appointmentsapi/slots?doctorId=${form.value.doctorId}&date=${form.value.date}`,
+                    { credentials: 'include' }
+                );
+                slots.value = res.ok ? await res.json() : [];
+            } catch { slots.value = []; }
+            slotsLoading.value = false;
+        };
+
+        // ── Filtered list ─────────────────────────────────────────────────
         const displayed = computed(() => {
             let list = appts.value;
-            // Trạng thái filter
-            if (filter.value !== 'all') {
-                list = list.filter(a => a.status.toLowerCase() === filter.value);
-            }
-            
-            // Thời gian filter (+/- N ngày)
-            if (timeFilter.value !== 'all') {
-                const days = parseInt(timeFilter.value);
-                const today = new Date();
-                today.setHours(0,0,0,0);
-                
-                list = list.filter(a => {
-                    if (!a.dateIso) return false;
-                    const aDate = new Date(a.dateIso);
-                    const diffTime = Math.abs(aDate - today);
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    if (days === 1) return diffDays === 0; // Hôm nay
-                    return diffDays <= days;
-                });
-            }
-            
-            // Tìm kiếm text
-            if (search.value) {
+            if (statusFilter.value)
+                list = list.filter(a => a.status === statusFilter.value);
+            if (search.value.trim()) {
                 const q = search.value.toLowerCase();
-                list = list.filter(a => a.patient.toLowerCase().includes(q) || a.doctor.toLowerCase().includes(q) || a.phone.includes(q));
+                list = list.filter(a =>
+                    a.patient.toLowerCase().includes(q) ||
+                    a.doctor.toLowerCase().includes(q)  ||
+                    a.phone.includes(q)
+                );
             }
             return list;
         });
 
-        const changeStatus = async (a, newStatus) => {
+        // ── Actions ───────────────────────────────────────────────────────
+        const setStatus = async (a, newStatus) => {
             try {
                 const res = await fetch(`/api/appointmentsapi/${a.id}/status`, {
-                    method: 'PATCH',
+                    method:  'PATCH',
+                    credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ Status: newStatus })
+                    body:    JSON.stringify({ Status: newStatus })
                 });
-                if (res.ok) {
-                    a.status = newStatus;
-                } else {
-                    alert('Không thể cập nhật trạng thái.');
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Lỗi kết nối Server.');
-            }
+                if (res.ok) a.status = newStatus;
+                else alert('Không thể cập nhật trạng thái.');
+            } catch { alert('Lỗi kết nối.'); }
         };
 
-        const confirm = (a) => { changeStatus(a, 'Confirmed'); };
-        const cancel  = (a) => { if(window.confirm('Huỷ lịch hẹn này?')) changeStatus(a, 'Cancelled'); };
+        const cancelAppt = (a) => {
+            if (confirm(`Huỷ lịch hẹn #APT-${String(a.id).padStart(4,'0')} của ${a.patient}?`))
+                setStatus(a, 'Cancelled');
+        };
 
-        return { filter, timeFilter, search, appts, total, pendingCount, confirmedCount, completedCount, displayed, confirm, cancel };
+        // ── Modal ─────────────────────────────────────────────────────────
+        const openModal = () => {
+            form.value = { fullName:'', phone:'', doctorId:'', date: todayStr, time:'', notes:'' };
+            slots.value = [];
+            formError.value = '';
+            formErrors.value = {};
+            showModal.value = true;
+        };
+
+        const submitAppt = async () => {
+            formError.value = '';
+            if (!validateForm()) return;
+
+            submitting.value = true;
+            try {
+                const [h, m] = f.time.split(':');
+                const res = await fetch('/api/appointmentsapi', {
+                    method:  'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({
+                        FullName: f.fullName,
+                        Phone:    f.phone,
+                        DoctorId: parseInt(f.doctorId),
+                        Date:     f.date,
+                        Time:     `${h}:${m}:00`,
+                        Reason:   f.notes,
+                    })
+                });
+                const data = await res.json();
+                if (data.success || data.Success) {
+                    showModal.value = false;
+                    await loadAppts();
+                } else {
+                    formError.value = data.message || 'Đặt lịch thất bại.';
+                }
+            } catch { formError.value = 'Lỗi kết nối server.'; }
+            submitting.value = false;
+        };
+
+        // Re-fetch when date/doctor filter changes
+        watch([dateFilter, doctorFilter], loadAppts);
+
+        onMounted(() => { loadDoctors(); loadAppts(); });
+
+        // ── Check-in ────────────────────────────────────────────────
+        const checkIn = async (a) => {
+            if (!confirm(`Check-in bệnh nhân ${a.patient}?`)) return;
+            try {
+                const res = await fetch(`/api/appointmentsapi/${a.id}/checkin`, {
+                    method: 'PATCH', credentials: 'include'
+                });
+                const data = await res.json();
+                if (data.success) {
+                    a.status = 'Confirmed';
+                    alert('✅ Check-in thành công! Bệnh nhân đã vào hàng đợi của bác sĩ.');
+                } else {
+                    alert(data.message || 'Lỗi check-in.');
+                }
+            } catch { alert('Lỗi kết nối.'); }
+        };
+
+        // ── Reassign modal ────────────────────────────────────────
+        const reassignModal    = ref(null);
+        const reassignDoctorId = ref('');
+        const reassignError    = ref('');
+        const reassigning      = ref(false);
+
+        const openReassign = (a) => {
+            reassignModal.value    = a;
+            reassignDoctorId.value = '';
+            reassignError.value    = '';
+        };
+
+        const submitReassign = async () => {
+            if (!reassignDoctorId.value) return;
+            reassigning.value = true;
+            reassignError.value = '';
+            try {
+                const res = await fetch(`/api/appointmentsapi/${reassignModal.value.id}/reassign`, {
+                    method: 'PATCH', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ NewDoctorId: parseInt(reassignDoctorId.value) })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    reassignModal.value.doctor = data.newDoctorName;
+                    reassignModal.value = null;
+                    await loadAppts();
+                } else {
+                    reassignError.value = data.message || 'Lỗi chuyển giao.';
+                }
+            } catch { reassignError.value = 'Lỗi kết nối.'; }
+            reassigning.value = false;
+        };
+
+        // ── Reschedule modal ─────────────────────────────────────
+        const rescheduleModal       = ref(null);
+        const rescheduleDate        = ref('');
+        const rescheduleTime        = ref('');
+        const rescheduleSlots       = ref([]);
+        const rescheduleSlotsLoading = ref(false);
+        const rescheduleError       = ref('');
+        const rescheduling          = ref(false);
+
+        const openReschedule = (a) => {
+            rescheduleModal.value = a;
+            rescheduleDate.value  = '';
+            rescheduleTime.value  = '';
+            rescheduleSlots.value = [];
+            rescheduleError.value = '';
+        };
+
+        const loadRescheduleSlots = async () => {
+            if (!rescheduleModal.value || !rescheduleDate.value) return;
+            rescheduleSlotsLoading.value = true;
+            rescheduleTime.value = '';
+            try {
+                const res = await fetch(
+                    `/api/appointmentsapi/slots?doctorId=${rescheduleModal.value.doctorId}&date=${rescheduleDate.value}`,
+                    { credentials: 'include' }
+                );
+                rescheduleSlots.value = res.ok ? await res.json() : [];
+            } catch { rescheduleSlots.value = []; }
+            rescheduleSlotsLoading.value = false;
+        };
+
+        const submitReschedule = async () => {
+            if (!rescheduleDate.value || !rescheduleTime.value) return;
+            rescheduling.value = true;
+            rescheduleError.value = '';
+            try {
+                const res = await fetch(`/api/appointmentsapi/${rescheduleModal.value.id}/reschedule`, {
+                    method: 'PATCH', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ NewDate: rescheduleDate.value, NewTime: rescheduleTime.value })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    rescheduleModal.value = null;
+                    await loadAppts();
+                } else {
+                    rescheduleError.value = data.message || 'Lỗi dời lịch.';
+                }
+            } catch { rescheduleError.value = 'Lỗi kết nối.'; }
+            rescheduling.value = false;
+        };
+
+        return {
+            todayStr, loading, appts, doctors, slots, slotsLoading,
+            dateFilter, doctorFilter, statusFilter, search,
+            displayed,
+            setStatus, cancelAppt, checkIn,
+            showModal, form, formError, formErrors, submitting,
+            openModal, submitAppt, loadSlots,
+            reassignModal, reassignDoctorId, reassignError, reassigning,
+            openReassign, submitReassign,
+            rescheduleModal, rescheduleDate, rescheduleTime, rescheduleSlots,
+            rescheduleSlotsLoading, rescheduleError, rescheduling,
+            openReschedule, loadRescheduleSlots, submitReschedule,
+        };
     }
 }).mount('#app');
 </script>

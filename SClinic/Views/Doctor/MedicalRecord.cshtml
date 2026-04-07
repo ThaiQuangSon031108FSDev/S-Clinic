@@ -163,7 +163,10 @@
                                  @@click="addRx(item)"
                                  class="flex items-center justify-between px-3 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-b-0">
                                 <div class="min-w-0 flex-1">
-                                    <p class="text-sm font-medium text-slate-800 truncate">[[ item.name ]]</p>
+                                    <p class="text-sm font-medium text-slate-800 truncate">
+                                        <span class="text-xs font-bold text-slate-400 mr-1">[[ item.code ]]</span>
+                                        [[ item.name ]]
+                                    </p>
                                     <p class="text-[10px] text-slate-400 uppercase">
                                         <span v-if="item.type === 'service'">🔬 Dịch vụ · [[ item.unit ]]</span>
                                         <span v-else-if="item.category">💊 [[ item.category ]] · [[ item.unit ]]</span>
@@ -184,7 +187,9 @@
                         </div>
                         <div v-for="(rx, i) in rxList" :key="i" class="px-4 py-2.5 flex items-center gap-2">
                             <div class="flex-1 min-w-0">
-                                <p class="text-xs font-semibold text-slate-800 truncate">[[ rx.name ]]</p>
+                                <p class="text-xs font-semibold text-slate-800 truncate">
+                                    <span class="text-slate-400 font-normal mr-1">[[ rx.code ]]</span>[[ rx.name ]]
+                                </p>
                                 <p class="text-[10px] text-slate-400">[[ (rx.price * rx.qty).toLocaleString() ]]đ</p>
                             </div>
                             <div class="flex items-center gap-1.5">
@@ -283,7 +288,10 @@ createApp({
             } else {
                 errMsg.value = 'Không tải được dữ liệu lịch hẹn.';
             }
-            if (resI.ok) inventory.value = await resI.json();
+            if (resI.ok) {
+                const rawInv = await resI.json();
+                inventory.value = rawInv.map(i => ({...i, code: i.type === 'service' ? 'SV' + String(i.id).padStart(3, '0') : 'MD' + String(i.id).padStart(3, '0') }));
+            }
             loading.value = false;
         });
 
@@ -291,7 +299,7 @@ createApp({
         const filteredInventory = computed(() => {
             const q = rxSearch.value.trim().toLowerCase();
             if (!q) return inventory.value.slice(0, 20); // show first 20 when no search
-            return inventory.value.filter(i => i.name.toLowerCase().includes(q)).slice(0, 15);
+            return inventory.value.filter(i => i.name.toLowerCase().includes(q) || i.code.toLowerCase().includes(q)).slice(0, 15);
         });
 
         const addRx = (item) => {

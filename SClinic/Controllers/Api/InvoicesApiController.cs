@@ -75,12 +75,29 @@ public class InvoicesApiController(ApplicationDbContext db) : ControllerBase
     [HttpPatch("{id}/collect")]
     public async Task<IActionResult> Collect(int id, [FromBody] CollectDto dto)
     {
-        var inv = await db.Invoices.FindAsync(id);
+        var inv = await db.Invoices
+            .Include(i => i.InvoiceDetails)
+            .FirstOrDefaultAsync(i => i.InvoiceId == id);
+
         if (inv is null) return NotFound();
         if (inv.PaymentStatus == PaymentStatus.Paid)
             return BadRequest("Hóa đơn đã được thanh toán.");
 
         inv.PaymentStatus = PaymentStatus.Paid;
+
+        foreach (var detail in inv.InvoiceDetails)
+        {
+            if (detail.ItemType == InvoiceItemType.Medicine && detail.MedicineId.HasValue)
+            {
+                var med = await db.Medicines.FindAsync(detail.MedicineId.Value);
+                if (med != null)
+                {
+                    med.StockQuantity -= detail.Quantity;
+                    if (med.StockQuantity < 0) med.StockQuantity = 0;
+                }
+            }
+        }
+
         await db.SaveChangesAsync();
         return Ok(new { id, status = "Paid", paymentMethod = dto.Method });
     }

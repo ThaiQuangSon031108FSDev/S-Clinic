@@ -101,13 +101,6 @@
                             💵 Thu ngân Hóa đơn
                             <span class="absolute right-3 bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">!</span>
                         </a>
-                        @if (isAdmin)
-                        {
-                            <a asp-controller="Admin" asp-action="Inventory"
-                               class="@(pageTitle=="Kho thuốc"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
-                                💊 Danh mục Thuốc
-                            </a>
-                        }
                     </nav>
                 </div>
             }
@@ -125,6 +118,10 @@
                         <a asp-controller="Admin" asp-action="Staff"
                            class="@(pageTitle=="Nhân sự"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
                             👥 Quản lý Nhân sự
+                        </a>
+                        <a asp-controller="Admin" asp-action="Catalog"
+                           class="@(pageTitle=="Danh mục hệ thống"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
+                            🗂️ Danh mục hệ thống
                         </a>
                     </nav>
                 </div>

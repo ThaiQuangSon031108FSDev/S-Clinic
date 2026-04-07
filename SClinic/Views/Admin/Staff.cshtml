@@ -225,11 +225,17 @@ createApp({
 
         const saveStaff = async () => {
             formError.value = '';
-            if (!form.value.fullName.trim()) { formError.value = 'Vui lòng nhập họ tên.'; return; }
-            if (!form.value.email.trim())    { formError.value = 'Vui lòng nhập email.'; return; }
-            if (!form.value.role)            { formError.value = 'Vui lòng chọn vai trò.'; return; }
-            if (!editMode.value && form.value.password.length < 6) { formError.value = 'Mật khẩu tối thiểu 6 ký tự.'; return; }
-            if (form.value.role === 'Doctor' && !form.value.specialty.trim()) { formError.value = 'Vui lòng nhập chuyên khoa.'; return; }
+            const f = form.value;
+            // ── Validate ────────────────────────────────────────────────
+            if (!f.fullName.trim())                         { formError.value = 'Vui lòng nhập họ tên.'; return; }
+            if (f.fullName.trim().length < 2)               { formError.value = 'Họ tên phải ít nhất 2 ký tự.'; return; }
+            if (/\d/.test(f.fullName))                      { formError.value = 'Họ tên không được chứa chữ số.'; return; }
+            if (!f.email.trim())                            { formError.value = 'Vui lòng nhập email.'; return; }
+            if (!f.email.includes('.') || f.email.split('').filter(c=>c==='@@').length !== 1 || f.email.startsWith('@@') || f.email.endsWith('@@')) { formError.value = 'Email kh\u00f4ng h\u1ee3p l\u1ec7 (VD: name@@domain.com).'; return; }
+            if (!f.role)                                    { formError.value = 'Vui lòng chọn vai trò.'; return; }
+            if (!editMode.value && f.password.length < 6)  { formError.value = 'Mật khẩu tối thiểu 6 ký tự.'; return; }
+            if (editMode.value && f.password && f.password.length < 6) { formError.value = 'Mật khẩu mới phải ít nhất 6 ký tự.'; return; }
+            if (f.role === 'Doctor' && !f.specialty.trim()) { formError.value = 'Vui lòng nhập chuyên khoa.'; return; }
 
             saving.value = true;
             try {

@@ -1,0 +1,625 @@
+@{
+    ViewData["Title"] = "Danh mục hệ thống";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+<style>[v-cloak]{display:none!important}</style>
+<div id="app" v-cloak>
+
+    <!-- ── Tabs ────────────────────────────────────────────────────────── -->
+    <div class="flex gap-1 mb-6 bg-slate-100 p-1 rounded-xl w-fit">
+        <button v-for="t in tabs" :key="t.key" @@click="activeTab=t.key"
+                :class="activeTab===t.key ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+                class="px-5 py-2 rounded-lg text-sm font-bold transition-all">
+            [[ t.label ]]
+        </button>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <!-- TAB: CATEGORIES                                                     -->
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <div v-if="activeTab==='categories'">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-bold text-slate-900">🗂️ Nhóm phân loại (Categories)</h2>
+            <button @@click="openCatModal()" class="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-brand-hover shadow-sm">
+                + Thêm danh mục
+            </button>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-3.5">Tên danh mục</th>
+                        <th class="px-6 py-3.5">Mô tả</th>
+                        <th class="px-6 py-3.5 text-center">Sản phẩm</th>
+                        <th class="px-6 py-3.5 text-right">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <tr v-if="!categories.length">
+                        <td colspan="4" class="px-6 py-10 text-center text-slate-400">Chưa có danh mục nào.</td>
+                    </tr>
+                    <tr v-for="c in categories" :key="c.categoryId" class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4 font-bold text-slate-900">[[ c.categoryName ]]</td>
+                        <td class="px-6 py-4 text-slate-500 text-xs">[[ c.description || '—' ]]</td>
+                        <td class="px-6 py-4 text-center">
+                            <span :class="c.medicineCount>0?'text-slate-700 font-bold':'text-slate-400'">[[ c.medicineCount ]]</span>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <button @@click="openCatModal(c)" class="text-xs font-bold text-slate-500 hover:text-slate-800 mr-3">Sửa</button>
+                            <button @@click="deleteCat(c)"
+                                    :disabled="c.medicineCount>0"
+                                    :class="c.medicineCount>0?'text-slate-300 cursor-not-allowed':'text-red-400 hover:text-red-600'"
+                                    class="text-xs font-bold">Xóa</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <!-- TAB: SERVICES                                                        -->
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <div v-if="activeTab==='services'">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-bold text-slate-900">🩺 Dịch vụ (Services)</h2>
+            <button @@click="openSvcModal()" class="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-brand-hover shadow-sm">
+                + Thêm dịch vụ
+            </button>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-3.5">Tên dịch vụ</th>
+                        <th class="px-6 py-3.5">Loại</th>
+                        <th class="px-6 py-3.5 text-right">Giá (đ)</th>
+                        <th class="px-6 py-3.5 text-right">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <tr v-if="!services.length">
+                        <td colspan="4" class="px-6 py-10 text-center text-slate-400">Chưa có dịch vụ nào.</td>
+                    </tr>
+                    <tr v-for="s in services" :key="s.serviceId" class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4 font-bold text-slate-900">[[ s.serviceName ]]</td>
+                        <td class="px-6 py-4">
+                            <span :class="s.serviceType==='Consultation'?'bg-blue-100 text-blue-700':'bg-purple-100 text-purple-700'"
+                                  class="text-xs font-bold px-2.5 py-1 rounded-full">
+                                [[ s.serviceType==='Consultation'?'Khám/Tư vấn':'Điều trị' ]]
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-right font-bold text-slate-800">[[ s.price.toLocaleString('vi-VN') ]]đ</td>
+                        <td class="px-6 py-4 text-right">
+                            <button @@click="openSvcModal(s)" class="text-xs font-bold text-slate-500 hover:text-slate-800 mr-3">Sửa</button>
+                            <button @@click="deleteSvc(s)" class="text-xs font-bold text-red-400 hover:text-red-600">Xóa</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <!-- TAB: TREATMENT PACKAGES                                             -->
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <div v-if="activeTab==='packages'">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-bold text-slate-900">📦 Gói liệu trình (Treatment Packages)</h2>
+            <button @@click="openPkgModal()" class="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-brand-hover shadow-sm">
+                + Thêm gói
+            </button>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-3.5">Tên gói</th>
+                        <th class="px-6 py-3.5 text-center">Số buổi</th>
+                        <th class="px-6 py-3.5 text-right">Giá (đ)</th>
+                        <th class="px-6 py-3.5 text-center">BN đăng ký</th>
+                        <th class="px-6 py-3.5 text-right">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <tr v-if="!packages.length">
+                        <td colspan="5" class="px-6 py-10 text-center text-slate-400">Chưa có gói nào.</td>
+                    </tr>
+                    <tr v-for="p in packages" :key="p.packageId" class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4 font-bold text-slate-900">[[ p.packageName ]]</td>
+                        <td class="px-6 py-4 text-center font-bold text-teal-600">[[ p.totalSessions ]] buổi</td>
+                        <td class="px-6 py-4 text-right font-bold text-slate-800">[[ p.price.toLocaleString('vi-VN') ]]đ</td>
+                        <td class="px-6 py-4 text-center text-slate-500">[[ p.patientCount ]]</td>
+                        <td class="px-6 py-4 text-right">
+                            <button @@click="openPkgModal(p)" class="text-xs font-bold text-slate-500 hover:text-slate-800 mr-3">Sửa</button>
+                            <button @@click="deletePkg(p)"
+                                    :disabled="p.patientCount>0"
+                                    :class="p.patientCount>0?'text-slate-300 cursor-not-allowed':'text-red-400 hover:text-red-600'"
+                                    class="text-xs font-bold">Xóa</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <!-- MODALS                                                               -->
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+
+    <!-- Medicine modal -->
+    <div v-if="medModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+                <h2 class="font-bold text-slate-900">[[ medModal.medicineId ? 'Sửa thuốc' : 'Thêm thuốc mới' ]]</h2>
+                <button @@click="medModal=null" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-500 font-bold">✕</button>
+            </div>
+            <div class="p-5 space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Tên thuốc *</label>
+                    <input v-model="medModal.name" type="text" placeholder="VD: Tretinoin 0.025%"
+                           class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Danh mục *</label>
+                    <select v-model="medModal.categoryId"
+                            class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none">
+                        <option value="">-- Chọn danh mục --</option>
+                        <option v-for="c in categories" :key="c.categoryId" :value="c.categoryId">[[ c.categoryName ]]</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Tồn kho ban đầu</label>
+                        <input v-model.number="medModal.stockQuantity" type="number" min="0"
+                               class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                        <p v-if="medModal.stockQuantity < 0" class="text-xs text-red-500 mt-1">Không được âm.</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Đơn giá (đ) *</label>
+                        <input v-model.number="medModal.priceRaw" type="number" min="0" step="1000"
+                               class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                        <p v-if="medModal.priceRaw < 0" class="text-xs text-red-500 mt-1">Không được âm.</p>
+                    </div>
+                </div>
+                <p v-if="modalError" class="text-xs text-red-500 font-semibold">⚠️ [[ modalError ]]</p>
+            </div>
+            <div class="flex justify-end gap-3 p-5 pt-0">
+                <button @@click="medModal=null" class="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">Huỷ</button>
+                <button @@click="saveMed" :disabled="saving || medModal.stockQuantity<0 || medModal.priceRaw<0"
+                        class="px-4 py-2 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover disabled:opacity-50">
+                    [[ saving ? 'Đang lưu...' : '✓ Lưu' ]]
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Restock modal -->
+    <div v-if="restockModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+                <h2 class="font-bold text-slate-900">📦 Nhập thêm tồn kho</h2>
+                <button @@click="restockModal=null" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-500 font-bold">✕</button>
+            </div>
+            <div class="p-5 space-y-3">
+                <p class="text-sm font-bold text-slate-800">[[ restockModal.name ]]</p>
+                <p class="text-xs text-slate-500">Tồn kho hiện tại: <b>[[ restockModal.stockQuantity ]]</b></p>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Số lượng nhập thêm *</label>
+                    <input v-model.number="restockQty" type="number" min="1"
+                           class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                    <p v-if="restockQty < 1" class="text-xs text-red-500 mt-1">Phải ít nhất 1.</p>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 p-5 pt-0">
+                <button @@click="restockModal=null" class="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">Huỷ</button>
+                <button @@click="confirmRestock" :disabled="restockQty<1 || saving"
+                        class="px-4 py-2 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover disabled:opacity-50">
+                    [[ saving ? 'Đang lưu...' : '✓ Xác nhận' ]]
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category modal -->
+    <div v-if="catModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+                <h2 class="font-bold text-slate-900">[[ catModal.categoryId ? 'Sửa danh mục' : 'Thêm danh mục' ]]</h2>
+                <button @@click="catModal=null" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-500 font-bold">✕</button>
+            </div>
+            <div class="p-5 space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Tên danh mục *</label>
+                    <input v-model="catModal.categoryName" type="text" placeholder="VD: Thuốc uống da liễu"
+                           class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Mô tả</label>
+                    <input v-model="catModal.description" type="text" placeholder="Mô tả ngắn..."
+                           class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                </div>
+                <p v-if="modalError" class="text-xs text-red-500 font-semibold">⚠️ [[ modalError ]]</p>
+            </div>
+            <div class="flex justify-end gap-3 p-5 pt-0">
+                <button @@click="catModal=null" class="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">Huỷ</button>
+                <button @@click="saveCat" :disabled="saving" class="px-4 py-2 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover disabled:opacity-50">
+                    [[ saving ? 'Đang lưu...' : '✓ Lưu' ]]
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service modal -->
+    <div v-if="svcModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+                <h2 class="font-bold text-slate-900">[[ svcModal.serviceId ? 'Sửa dịch vụ' : 'Thêm dịch vụ' ]]</h2>
+                <button @@click="svcModal=null" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-500 font-bold">✕</button>
+            </div>
+            <div class="p-5 space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Tên dịch vụ *</label>
+                    <input v-model="svcModal.serviceName" type="text" placeholder="VD: Khám da liễu tổng quát"
+                           class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Loại *</label>
+                        <select v-model="svcModal.serviceType"
+                                class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none">
+                            <option value="Consultation">Khám / Tư vấn</option>
+                            <option value="Treatment">Điều trị</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Giá tiền (đ) *</label>
+                        <input v-model.number="svcModal.price" type="number" min="0" step="10000"
+                               class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                        <p v-if="svcModal.price < 0" class="text-xs text-red-500 mt-1">Không được âm.</p>
+                    </div>
+                </div>
+                <p v-if="modalError" class="text-xs text-red-500 font-semibold">⚠️ [[ modalError ]]</p>
+            </div>
+            <div class="flex justify-end gap-3 p-5 pt-0">
+                <button @@click="svcModal=null" class="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">Huỷ</button>
+                <button @@click="saveSvc" :disabled="saving || svcModal.price < 0" class="px-4 py-2 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover disabled:opacity-50">
+                    [[ saving ? 'Đang lưu...' : '✓ Lưu' ]]
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <!-- TAB: MEDICINES                                                      -->
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <div v-if="activeTab==='medicines'">
+        <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center mb-4">
+            <h2 class="text-lg font-bold text-slate-900 mr-auto">💊 Kho thuốc / Skincare</h2>
+            <select v-model="medCatFilter"
+                    class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-brand-primary focus:outline-none">
+                <option value="">Tất cả danh mục</option>
+                <option v-for="c in categories" :key="c.categoryId" :value="c.categoryId">[[ c.categoryName ]]</option>
+            </select>
+            <input v-model="medSearch" type="text" placeholder="Tìm tên hoặc mã..."
+                   class="border border-slate-200 rounded-lg px-3 py-2 text-sm w-48 focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+            <button @@click="openMedModal()" class="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-brand-hover shadow-sm flex-shrink-0">+ Thêm thuốc</button>
+        </div>
+        <!-- Stats -->
+        <div class="grid grid-cols-3 gap-4 mb-4">
+            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
+                <span class="text-xl">💊</span>
+                <div><p class="text-xs text-slate-500">Tổng loại</p><p class="font-extrabold text-slate-900">[[ medicines.length ]]</p></div>
+            </div>
+            <div class="bg-white p-3 rounded-xl border border-red-100 shadow-sm flex items-center gap-2">
+                <span class="text-xl">⚠️</span>
+                <div><p class="text-xs text-slate-500">Sắp hết</p><p class="font-extrabold text-red-600">[[ medicines.filter(m=>m.stockQuantity<=10).length ]]</p></div>
+            </div>
+            <div class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm flex items-center gap-2">
+                <span class="text-xl">📦</span>
+                <div><p class="text-xs text-slate-500">Tổng tồn</p><p class="font-extrabold text-slate-900">[[ medicines.reduce((s,m)=>s+m.stockQuantity,0) ]]</p></div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-3.5">Mã</th>
+                        <th class="px-6 py-3.5">Tên thuốc</th>
+                        <th class="px-6 py-3.5">Danh mục</th>
+                        <th class="px-6 py-3.5 text-center">Tồn kho</th>
+                        <th class="px-6 py-3.5 text-right">Đơn giá</th>
+                        <th class="px-6 py-3.5 text-right">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <tr v-if="!filteredMeds.length">
+                        <td colspan="5" class="px-6 py-10 text-center text-slate-400">Không tìm thấy thuốc nào.</td>
+                    </tr>
+                    <tr v-for="m in filteredMeds" :key="m.medicineId"
+                        :class="m.stockQuantity<=10?'bg-red-50/30':''"
+                        class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-3.5 text-xs font-bold text-slate-500">[[ m.code ]]</td>
+                        <td class="px-6 py-3.5">
+                            <p class="font-bold text-slate-900">[[ m.name ]]</p>
+                            <span v-if="m.stockQuantity<=10" class="text-[10px] bg-red-100 text-red-600 font-bold px-2 py-0.5 rounded">Sắp hết</span>
+                        </td>
+                        <td class="px-6 py-3.5 text-slate-500 text-xs">[[ m.category ]]</td>
+                        <td class="px-6 py-3.5 text-center">
+                            <span :class="m.stockQuantity<=10?'text-red-600 font-extrabold':'text-slate-700 font-semibold'">[[ m.stockQuantity ]]</span>
+                        </td>
+                        <td class="px-6 py-3.5 text-right font-semibold text-slate-700">[[ m.price ]]</td>
+                        <td class="px-6 py-3.5 text-right">
+                            <button @@click="openRestock(m)" class="text-xs font-bold text-brand-primary hover:text-brand-hover mr-2">Nhập thêm</button>
+                            <button @@click="openMedModal(m)" class="text-xs font-bold text-slate-500 hover:text-slate-800 mr-2">Sửa</button>
+                            <button @@click="deleteMed(m)" class="text-xs font-bold text-red-400 hover:text-red-600">Xóa</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Package modal -->
+    <div v-if="pkgModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+                <h2 class="font-bold text-slate-900">[[ pkgModal.packageId ? 'Sửa gói liệu trình' : 'Thêm gói liệu trình' ]]</h2>
+                <button @@click="pkgModal=null" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-500 font-bold">✕</button>
+            </div>
+            <div class="p-5 space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Tên gói *</label>
+                    <input v-model="pkgModal.packageName" type="text" placeholder="VD: Gói trị mụn 6 buổi"
+                           class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Số buổi *</label>
+                        <input v-model.number="pkgModal.totalSessions" type="number" min="1"
+                               class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                        <p v-if="pkgModal.totalSessions < 1" class="text-xs text-red-500 mt-1">Phải ≥ 1 buổi.</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Giá (đ) *</label>
+                        <input v-model.number="pkgModal.price" type="number" min="0" step="100000"
+                               class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                        <p v-if="pkgModal.price < 0" class="text-xs text-red-500 mt-1">Không được âm.</p>
+                    </div>
+                </div>
+                <p v-if="modalError" class="text-xs text-red-500 font-semibold">⚠️ [[ modalError ]]</p>
+            </div>
+            <div class="flex justify-end gap-3 p-5 pt-0">
+                <button @@click="pkgModal=null" class="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">Huỷ</button>
+                <button @@click="savePkg" :disabled="saving || pkgModal.price < 0 || pkgModal.totalSessions < 1"
+                        class="px-4 py-2 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover disabled:opacity-50">
+                    [[ saving ? 'Đang lưu...' : '✓ Lưu' ]]
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const { createApp, ref, computed, onMounted } = Vue;
+createApp({
+    delimiters: ['[[',']]'],
+    setup() {
+        const activeTab  = ref('categories');
+        const tabs = [
+            { key: 'categories', label: '🗂️ Danh mục' },
+            { key: 'services',   label: '🩺 Dịch vụ' },
+            { key: 'packages',   label: '📦 Gói liệu trình' },
+            { key: 'medicines',  label: '💊 Kho thuốc' },
+        ];
+
+        const categories = ref([]);
+        const services   = ref([]);
+        const packages   = ref([]);
+        const medicines  = ref([]);
+        const saving     = ref(false);
+        const modalError = ref('');
+
+        // ── Load ───────────────────────────────────────────────────────────
+        const loadCats  = async () => {
+            const r = await fetch('/api/catalog/categories', { credentials: 'include' });
+            if (r.ok) categories.value = await r.json();
+        };
+        const loadMeds  = async () => {
+            const r = await fetch('/api/medicinesapi', { credentials: 'include' });
+            if (r.ok) {
+                const rawMeds = await r.json();
+                medicines.value = rawMeds.map(m => ({...m, code: 'MD' + String(m.medicineId).padStart(3, '0')}));
+            }
+        };
+        const loadSvcs  = async () => {
+            const r = await fetch('/api/catalog/services', { credentials: 'include' });
+            if (r.ok) services.value = await r.json();
+        };
+        const loadPkgs  = async () => {
+            const r = await fetch('/api/catalog/packages', { credentials: 'include' });
+            if (r.ok) packages.value = await r.json();
+        };
+
+        onMounted(() => { loadCats(); loadSvcs(); loadPkgs(); loadMeds(); });
+
+        // Medicine filter
+        const medSearch    = ref('');
+        const medCatFilter = ref('');
+        const filteredMeds = computed(() => {
+            let list = medicines.value;
+            if (medCatFilter.value) list = list.filter(m => m.categoryId === medCatFilter.value);
+            if (medSearch.value) {
+                const q = medSearch.value.toLowerCase();
+                list = list.filter(m => m.name.toLowerCase().includes(q) || (m.code && m.code.toLowerCase().includes(q)));
+            }
+            return list;
+        });
+
+        // ── Category CRUD ──────────────────────────────────────────────────
+        const catModal = ref(null);
+        const openCatModal = (c = null) => {
+            modalError.value = '';
+            catModal.value = c
+                ? { ...c }
+                : { categoryId: null, categoryName: '', description: '' };
+        };
+        const saveCat = async () => {
+            modalError.value = '';
+            if (!catModal.value.categoryName.trim()) { modalError.value = 'Tên không được trống.'; return; }
+            saving.value = true;
+            const isEdit = !!catModal.value.categoryId;
+            const url    = isEdit ? `/api/catalog/categories/${catModal.value.categoryId}` : '/api/catalog/categories';
+            const r = await fetch(url, {
+                method: isEdit ? 'PUT' : 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ CategoryName: catModal.value.categoryName, Description: catModal.value.description })
+            });
+            saving.value = false;
+            const data = await r.json();
+            if (data.success || r.ok) { catModal.value = null; await loadCats(); }
+            else modalError.value = data.message || 'Lỗi lưu dữ liệu.';
+        };
+        const deleteCat = async (c) => {
+            if (c.medicineCount > 0) return;
+            if (!confirm(`Xóa danh mục "${c.categoryName}"?`)) return;
+            const r = await fetch(`/api/catalog/categories/${c.categoryId}`, { method: 'DELETE', credentials: 'include' });
+            const data = await r.json();
+            if (data.success) await loadCats();
+            else alert(data.message || 'Không thể xóa.');
+        };
+
+        // ── Service CRUD ───────────────────────────────────────────────────
+        const svcModal = ref(null);
+        const openSvcModal = (s = null) => {
+            modalError.value = '';
+            svcModal.value = s
+                ? { ...s }
+                : { serviceId: null, serviceName: '', price: 0, serviceType: 'Consultation' };
+        };
+        const saveSvc = async () => {
+            modalError.value = '';
+            if (!svcModal.value.serviceName.trim()) { modalError.value = 'Tên không được trống.'; return; }
+            if (svcModal.value.price < 0) { modalError.value = 'Giá không được âm.'; return; }
+            saving.value = true;
+            const isEdit = !!svcModal.value.serviceId;
+            const url    = isEdit ? `/api/catalog/services/${svcModal.value.serviceId}` : '/api/catalog/services';
+            const r = await fetch(url, {
+                method: isEdit ? 'PUT' : 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ServiceName: svcModal.value.serviceName, Price: svcModal.value.price, ServiceType: svcModal.value.serviceType })
+            });
+            saving.value = false;
+            const data = await r.json();
+            if (data.success || r.ok) { svcModal.value = null; await loadSvcs(); }
+            else modalError.value = data.message || 'Lỗi lưu dữ liệu.';
+        };
+        const deleteSvc = async (s) => {
+            if (!confirm(`Xóa dịch vụ "${s.serviceName}"?`)) return;
+            const r = await fetch(`/api/catalog/services/${s.serviceId}`, { method: 'DELETE', credentials: 'include' });
+            const data = await r.json();
+            if (data.success) await loadSvcs();
+            else alert(data.message || 'Không thể xóa.');
+        };
+
+        // ── Package CRUD ───────────────────────────────────────────────────
+        const pkgModal = ref(null);
+        const openPkgModal = (p = null) => {
+            modalError.value = '';
+            pkgModal.value = p
+                ? { ...p }
+                : { packageId: null, packageName: '', totalSessions: 1, price: 0 };
+        };
+        const savePkg = async () => {
+            modalError.value = '';
+            if (!pkgModal.value.packageName.trim()) { modalError.value = 'Tên không được trống.'; return; }
+            if (pkgModal.value.price < 0)           { modalError.value = 'Giá không được âm.'; return; }
+            if (pkgModal.value.totalSessions < 1)   { modalError.value = 'Số buổi phải ≥ 1.'; return; }
+            saving.value = true;
+            const isEdit = !!pkgModal.value.packageId;
+            const url    = isEdit ? `/api/catalog/packages/${pkgModal.value.packageId}` : '/api/catalog/packages';
+            const r = await fetch(url, {
+                method: isEdit ? 'PUT' : 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ PackageName: pkgModal.value.packageName, TotalSessions: pkgModal.value.totalSessions, Price: pkgModal.value.price })
+            });
+            saving.value = false;
+            const data = await r.json();
+            if (data.success || r.ok) { pkgModal.value = null; await loadPkgs(); }
+            else modalError.value = data.message || 'Lỗi lưu dữ liệu.';
+        };
+        const deletePkg = async (p) => {
+            if (p.patientCount > 0) return;
+            if (!confirm(`Xóa gói "${p.packageName}"?`)) return;
+            const r = await fetch(`/api/catalog/packages/${p.packageId}`, { method: 'DELETE', credentials: 'include' });
+            const data = await r.json();
+            if (data.success) await loadPkgs();
+            else alert(data.message || 'Không thể xóa.');
+        };
+
+        // ── Medicine CRUD ──────────────────────────────────────────────────
+        const medModal    = ref(null);
+        const restockModal = ref(null);
+        const restockQty   = ref(10);
+
+        const openMedModal = (m = null) => {
+            modalError.value = '';
+            medModal.value = m
+                ? { medicineId: m.medicineId, name: m.name, categoryId: m.categoryId, stockQuantity: m.stockQuantity, priceRaw: m.priceRaw }
+                : { medicineId: null, name: '', categoryId: '', stockQuantity: 0, priceRaw: 0 };
+        };
+        const saveMed = async () => {
+            modalError.value = '';
+            const m = medModal.value;
+            if (!m.name.trim())   { modalError.value = 'Tên không được trống.'; return; }
+            if (!m.categoryId)    { modalError.value = 'Vui lòng chọn danh mục.'; return; }
+            if (m.priceRaw < 0)   { modalError.value = 'Đơn giá không được âm.'; return; }
+            if (m.stockQuantity < 0) { modalError.value = 'Tồn kho không được âm.'; return; }
+            saving.value = true;
+            const isEdit = !!m.medicineId;
+            const url    = isEdit ? `/api/medicinesapi/${m.medicineId}` : '/api/medicinesapi';
+            const r = await fetch(url, {
+                method: isEdit ? 'PUT' : 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: m.name, categoryId: m.categoryId, stockQuantity: m.stockQuantity, price: m.priceRaw })
+            });
+            saving.value = false;
+            if (r.ok) { medModal.value = null; await loadMeds(); }
+            else modalError.value = 'Lỗi lưu dữ liệu.';
+        };
+        const deleteMed = async (m) => {
+            if (!confirm(`Xóa thuốc "${m.name}"?`)) return;
+            const r = await fetch(`/api/medicinesapi/${m.medicineId}`, { method: 'DELETE', credentials: 'include' });
+            if (r.ok) await loadMeds();
+            else alert('Không thể xóa.');
+        };
+        const openRestock = (m) => { restockModal.value = m; restockQty.value = 10; };
+        const confirmRestock = async () => {
+            if (restockQty.value < 1) return;
+            saving.value = true;
+            const r = await fetch(`/api/medicinesapi/${restockModal.value.medicineId}/restock`, {
+                method: 'PATCH', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ qty: restockQty.value })
+            });
+            saving.value = false;
+            if (r.ok) { restockModal.value = null; await loadMeds(); }
+        };
+
+        return {
+            activeTab, tabs,
+            categories, services, packages, medicines, filteredMeds,
+            medSearch, medCatFilter,
+            saving, modalError,
+            catModal, openCatModal, saveCat, deleteCat,
+            svcModal, openSvcModal, saveSvc, deleteSvc,
+            pkgModal, openPkgModal, savePkg, deletePkg,
+            medModal, openMedModal, saveMed, deleteMed,
+            restockModal, restockQty, openRestock, confirmRestock,
+        };
+    }
+}).mount('#app');
+</script>
+}

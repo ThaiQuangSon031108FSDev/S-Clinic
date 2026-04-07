@@ -59,4 +59,12 @@ public class AdminController(ApplicationDbContext db) : Controller
         ViewData["Title"] = "Nhân sự";
         return View();
     }
+
+    // GET /Admin/Catalog — Admin only: quản lý danh mục, dịch vụ, gói liệu trình
+    [Authorize(Roles = "Admin")]
+    public IActionResult Catalog()
+    {
+        ViewData["Title"] = "Danh mục hệ thống";
+        return View();
+    }
 }
