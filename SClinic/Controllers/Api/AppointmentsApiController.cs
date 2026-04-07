@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SClinic.Data;
+using SClinic.Hubs;
 using SClinic.Models;
 
 namespace SClinic.Controllers.Api;
@@ -9,7 +11,9 @@ namespace SClinic.Controllers.Api;
 /// <summary>API for Receptionist queue management.</summary>
 [ApiController, Route("api/[controller]")]
 [Authorize(Roles = "Receptionist,Admin,Doctor,Cashier")]
-public class AppointmentsApiController(ApplicationDbContext db) : ControllerBase
+public class AppointmentsApiController(
+    ApplicationDbContext db,
+    IHubContext<ClinicHub> hub) : ControllerBase
 {
     // GET api/appointmentsapi/all — all appointments (for history/filtering)
     [HttpGet("all")]
@@ -49,6 +53,31 @@ public class AppointmentsApiController(ApplicationDbContext db) : ControllerBase
             .ToListAsync();
 
         return Ok(list);
+    }
+
+    // GET api/appointmentsapi/{id} — single appointment detail (for QR lookup)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var a = await db.Appointments
+            .Include(x => x.Patient)
+            .Include(x => x.Schedule).ThenInclude(s => s!.Doctor)
+            .Include(x => x.Service)
+            .FirstOrDefaultAsync(x => x.AppointmentId == id);
+
+        if (a is null) return NotFound(new { success = false, message = "Không tìm thấy lịch hẹn." });
+
+        return Ok(new
+        {
+            appointmentId = a.AppointmentId,
+            patientName   = a.Patient.FullName,
+            patientPhone  = a.Patient.Phone,
+            doctorName    = a.Schedule?.Doctor.FullName ?? "—",
+            time          = a.Schedule?.TimeSlot.ToString(@"hh\:mm") ?? "—",
+            date          = a.Schedule?.WorkDate.ToString("dd/MM/yyyy") ?? "—",
+            status        = a.Status.ToString(),
+            serviceName   = a.Service?.ServiceName ?? null,
+        });
     }
 
     // GET api/appointmentsapi/doctors — danh sách bác sĩ cho modal
@@ -217,6 +246,21 @@ public class AppointmentsApiController(ApplicationDbContext db) : ControllerBase
         // Check-in: set to Confirmed → Doctor Queue picks up Confirmed status
         appt.Status = AppointmentStatus.Confirmed;
         await db.SaveChangesAsync();
+
+        // 🔔 SignalR: notify all Doctors
+        var patientName = (await db.Appointments
+            .Include(a => a.Patient)
+            .FirstOrDefaultAsync(a => a.AppointmentId == id))
+            ?.Patient.FullName ?? "Bệnh nhân";
+
+        await hub.Clients.Group("Doctor")
+            .SendAsync("ReceiveNotification", new
+            {
+                type    = "checkin",
+                icon    = "💁",
+                title   = "REAL-TIME CHECK-IN " + DateTime.Now.ToString("HH:mm:ss"),
+                message = $"{patientName} đã check-in thực tế tại quầy."
+            });
 
         return Ok(new { success = true, message = "Check-in thành công. Bệnh nhân đã vào hàng đợi." });
     }

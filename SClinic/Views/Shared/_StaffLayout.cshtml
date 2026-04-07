@@ -170,6 +170,9 @@
             </div>
         </header>
 
+        <!-- Toast Notification Container -->
+        <div id="clinic-toasts" style="position:fixed;bottom:24px;right:24px;z-index:99998;display:flex;flex-direction:column-reverse;gap:12px;pointer-events:none;"></div>
+
         <!-- Page content -->
         <main class="flex-1 overflow-y-auto no-scrollbar p-8">
             @RenderBody()
@@ -178,6 +181,7 @@
 </div>
 
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
 @RenderSection("Scripts", required: false)
 <script>
 (function(){
@@ -203,6 +207,79 @@
         overlay.style.opacity='1';
         setTimeout(function(){ window.location.href = href; }, 300);
     });
+})();
+</script>
+
+<!-- ══ SignalR Toast System ══════════════════════════════════════════════ -->
+<script>
+(function() {
+    const role = '@role';
+    if (!role || !window.signalR) return;
+
+    // ── Toast renderer ──────────────────────────────────────────────────────
+    function showToast(icon, title, msg) {
+        var container = document.getElementById('clinic-toasts');
+        if (!container) return;
+
+        var el = document.createElement('div');
+        el.style.cssText = [
+            'background:white','border-radius:16px','box-shadow:0 8px 32px rgba(0,0,0,.18)',
+            'border-left:5px solid #0d9488','padding:14px 18px','max-width:340px',
+            'pointer-events:all','display:flex','align-items:flex-start','gap:12px',
+            'opacity:0','transform:translateX(60px)','transition:all .35s cubic-bezier(.4,0,.2,1)',
+            'font-family:Inter,sans-serif'
+        ].join(';');
+
+        el.innerHTML = [
+            '<div style="font-size:1.6rem;flex-shrink:0;line-height:1">' + icon + '</div>',
+            '<div>',
+            '  <p style="font-weight:700;font-size:.82rem;color:#dc2626;margin:0 0 3px">🚨 KHÔNG PHẢI MOCKUP - ' + new Date().toLocaleTimeString() + '</p>',
+            '  <p style="font-weight:700;font-size:1rem;color:#1e293b;margin:0 0 3px">' + title + '</p>',
+            '  <p style="font-size:.75rem;color:#64748b;margin:0;line-height:1.4">' + msg + '</p>',
+            '</div>',
+            '<button onclick="this.parentElement.remove()" style="margin-left:auto;font-size:1rem;color:#94a3b8;background:none;border:none;cursor:pointer;flex-shrink:0">&#x2715;</button>'
+        ].join('');
+
+        container.appendChild(el);
+        // Animate in
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                el.style.opacity = '1';
+                el.style.transform = 'translateX(0)';
+            });
+        });
+        /* Auto-dismiss disabled for live prove
+        setTimeout(function() {
+            el.style.opacity = '0';
+            el.style.transform = 'translateX(60px)';
+            setTimeout(function() { el.remove(); }, 400);
+        }, 5000);
+        */
+    }
+
+    // ── SignalR Connection ───────────────────────────────────────────────────
+    var connection = new signalR.HubConnectionBuilder()
+        .withUrl('/clinicHub')
+        .withAutomaticReconnect()
+        .build();
+
+    connection.on('ReceiveNotification', function(data) {
+        console.log('[SignalR RECEIVE] @DateTime.Now.ToString("HH:mm:ss"): ', data);
+        showToast(data.icon || '🔔', data.title || 'Thông báo', data.message || '');
+        // Bell shake on existing bell button
+        var bell = document.querySelector('[data-bell]');
+        if (bell) { bell.classList.add('animate-bounce'); setTimeout(function(){ bell.classList.remove('animate-bounce'); }, 1000); }
+    });
+
+    connection.start().then(function() {
+        return connection.invoke('JoinRole', role);
+    }).catch(function(err) {
+        console.warn('[SignalR] connect error:', err);
+    });
+
+    // expose for manual use in Vue
+    window._clinicHub = connection;
+    window._showToast = showToast;
 })();
 </script>
 </body>

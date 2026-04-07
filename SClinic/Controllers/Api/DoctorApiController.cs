@@ -1,15 +1,24 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SClinic.Data;
+using SClinic.Hubs;
 using SClinic.Models;
 using System.Security.Claims;
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace SClinic.Controllers.Api;
 
 [ApiController, Route("api/doctor")]
 [Authorize(Roles = "Doctor,Admin")]
-public class DoctorApiController(ApplicationDbContext db, IWebHostEnvironment env) : ControllerBase
+public class DoctorApiController(
+    ApplicationDbContext db,
+    IWebHostEnvironment env,
+    IConfiguration config,
+    IHttpClientFactory httpClientFactory,
+    IHubContext<ClinicHub> hub) : ControllerBase
 {
     // ── GET /api/doctor/week-appointments — List all appointments for doctor ─
     [HttpGet("week-appointments")]
@@ -505,7 +514,114 @@ public class DoctorApiController(ApplicationDbContext db, IWebHostEnvironment en
         invoice.TotalAmount = total;
         await db.SaveChangesAsync();
 
+        // 🔔 SignalR: notify Cashier group
+        var patient = await db.Patients.FindAsync(appt.PatientId);
+        await hub.Clients.Group("Cashier")
+            .SendAsync("ReceiveNotification", new
+            {
+                type    = "invoice",
+                icon    = "💸",
+                title   = "REAL-TIME INVOICE " + DateTime.Now.ToString("HH:mm:ss"),
+                message = $"Bệnh nhân {patient?.FullName ?? "vừa khám xong"} hoàn thành. Hóa đơn #{invoice.InvoiceId} sẵn sàng thu tiền."
+            });
+        await hub.Clients.Group("Admin")
+            .SendAsync("ReceiveNotification", new
+            {
+                type    = "invoice",
+                icon    = "💰",
+                title   = "REAL-TIME LOG " + DateTime.Now.ToString("HH:mm:ss"),
+                message = $"Hóa đơn #{invoice.InvoiceId} của {patient?.FullName ?? "BN"} đang chờ thu ngân."
+            });
+
         return Ok(new { success = true, recordId = record.RecordId });
+    }
+
+    // ── POST /api/doctor/ai-analyze — Gemini 1.5 Flash phân tích da ──────────
+    [HttpPost("ai-analyze")]
+    [RequestSizeLimit(20 * 1024 * 1024)]  // 20 MB
+    [RequestFormLimits(MultipartBodyLengthLimit = 20 * 1024 * 1024)]
+    public async Task<IActionResult> AiAnalyze([FromBody] AiAnalyzeDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.ImageData))
+            return BadRequest(new { success = false, message = "Không có ảnh để phân tích." });
+
+        var apiKey = config["Gemini:ApiKey"];
+        var model  = config["Gemini:Model"] ?? "gemini-1.5-flash";
+
+        if (string.IsNullOrWhiteSpace(apiKey) || apiKey == "YOUR_GEMINI_API_KEY_HERE")
+            return BadRequest(new { success = false, message = "Chưa cấu hình Gemini API Key trong appsettings.json." });
+
+        // ── Build request payload ────────────────────────────────────────────
+        // ImageData is either "data:image/jpeg;base64,<data>" or raw base64
+        string mimeType = "image/jpeg";
+        string base64Data = dto.ImageData;
+
+        if (dto.ImageData.StartsWith("data:"))
+        {
+            // data:<mime>;base64,<data>
+            var semi   = dto.ImageData.IndexOf(';');
+            var comma  = dto.ImageData.IndexOf(',');
+            mimeType   = dto.ImageData[5..semi];
+            base64Data = dto.ImageData[(comma + 1)..];
+        }
+
+        var sideLabel = dto.Side == "after" ? "ảnh After (sau điều trị)" : "ảnh Before (trước điều trị)";
+        var prompt = $"""
+            Bạn là trợ lý AI chuyên khoa Da liễu hỗ trợ bác sĩ tại phòng khám S-Clinic.
+            Hãy phân tích {sideLabel} của bệnh nhân theo các mục sau (trả lời bằng tiếng Việt, ngắn gọn, chuyên nghiệp):
+            1. **Tình trạng da quan sát được**: mô tả khách quan (màu sắc, kết cấu, tổn thương nhìn thấy).
+            2. **Nhận định sơ bộ**: các vấn đề da liễu có thể liên quan.
+            3. **Lưu ý cho bác sĩ**: điểm cần chú ý khi xây dựng phác đồ điều trị.
+            KHÔNG chẩn đoán thay thế bác sĩ. Chỉ hỗ trợ phân tích hình ảnh.
+            """;
+
+        var requestBody = new
+        {
+            contents = new[]
+            {
+                new
+                {
+                    parts = new object[]
+                    {
+                        new { inline_data = new { mime_type = mimeType, data = base64Data } },
+                        new { text = prompt }
+                    }
+                }
+            },
+            generationConfig = new
+            {
+                temperature     = 0.4,
+                maxOutputTokens = 2048
+            }
+        };
+
+        // ── Call Gemini REST API ─────────────────────────────────────────────
+        var client = httpClientFactory.CreateClient();
+        var url    = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+        try
+        {
+            var response = await client.PostAsJsonAsync(url, requestBody);
+            var body     = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                return StatusCode((int)response.StatusCode,
+                    new { success = false, message = $"Gemini API lỗi: {response.StatusCode}", detail = body });
+
+            using var doc = JsonDocument.Parse(body);
+            var text = doc.RootElement
+                .GetProperty("candidates")[0]
+                .GetProperty("content")
+                .GetProperty("parts")[0]
+                .GetProperty("text")
+                .GetString() ?? "Không có phản hồi từ AI.";
+
+            return Ok(new { success = true, analysis = text });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = $"Lỗi gọi AI: {ex.Message}" });
+        }
     }
 }
 
@@ -532,4 +648,11 @@ public class SaveRecordDto
     public string SkinCondition { get; set; } = "";
     public string Diagnosis     { get; set; } = "";
     public string Notes         { get; set; } = "";
+}
+
+public class AiAnalyzeDto
+{
+    /// <summary>Full data URI: "data:image/jpeg;base64,..." OR a public image URL.</summary>
+    public string ImageData { get; set; } = "";
+    public string Side      { get; set; } = "before"; // "before" | "after"
 }

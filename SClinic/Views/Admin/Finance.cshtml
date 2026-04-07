@@ -202,7 +202,43 @@
             </div>
             <div class="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end">
                 <button @@click="modal=null" class="px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600">Huỷ</button>
+                <!-- 💳 VietQR button -->
+                <button @@click="openVietQr(modal); modal=null"
+                        class="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl text-sm font-bold hover:opacity-90 shadow-md">
+                    💳 QR Chuyển khoản
+                </button>
                 <button @@click="confirmCollect" class="px-6 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover shadow-md">✓ Xác nhận Thu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ VIETQR MODAL ══════════════════════════════════════════════════ -->
+    <div v-if="vietQrModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">💳 QR Chuyển khoản</h2>
+                    <p class="text-xs text-slate-500">S-Clinic · MB Bank</p>
+                </div>
+                <button @@click="vietQrModal=null" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-red-100 hover:text-red-600 font-bold flex items-center justify-center">✕</button>
+            </div>
+            <div class="p-5 text-center space-y-3">
+                <img :src="vietQrImageUrl" alt="VietQR" class="mx-auto rounded-2xl border border-slate-200 shadow-md w-56 h-56 object-contain" />
+                <div class="bg-blue-50 border border-blue-100 rounded-xl p-3 text-left">
+                    <p class="text-xs text-slate-500 mb-1">Nội dung chuyển khoản:</p>
+                    <p class="font-mono font-extrabold text-blue-700 text-sm">SCLINIC HD[[ String(vietQrModal.id).padStart(4,'0') ]]</p>
+                </div>
+                <div class="flex justify-between text-sm text-slate-600 border border-slate-100 rounded-xl p-3">
+                    <span>Số tiền</span>
+                    <span class="font-extrabold text-brand-primary">[[ vietQrModal.amountFmt ]]đ</span>
+                </div>
+                <p class="text-xs text-slate-400">Để nguyên nội dung để hệ thống xác minh tự động.</p>
+            </div>
+            <div class="p-5 pt-0 flex gap-3">
+                <button @@click="vietQrModal=null" class="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600">Huỷ</button>
+                <button @@click="confirmVietQr" class="flex-1 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover shadow-md">
+                    ✓ Xác nhận đã chuyển
+                </button>
             </div>
         </div>
     </div>
@@ -261,6 +297,32 @@ createApp({
         const printData   = ref(null);
         const payMethod   = ref('Tiền mặt');
         const invoices    = ref([]);
+        const vietQrModal = ref(null);
+
+        // VietQR image URL builder — hardcoded MB Bank demo account
+        // Account: 0348963791 · Bank: MB
+        const MB_BANK   = 'MB';
+        const MB_ACCT   = '0348963791';
+        const MB_NAME   = 'PHONG%20KHAM%20S-CLINIC';
+        const vietQrImageUrl = computed(() => {
+            if (!vietQrModal.value) return '';
+            const amt = Math.round(vietQrModal.value.amount || 0);
+            const desc = encodeURIComponent('SCLINIC HD' + String(vietQrModal.value.id).padStart(4,'0'));
+            return `https://img.vietqr.io/image/${MB_BANK}-${MB_ACCT}-compact2.png?amount=${amt}&addInfo=${desc}&accountName=${MB_NAME}`;
+        });
+
+        const openVietQr = (inv) => { vietQrModal.value = inv; };
+        const confirmVietQr = async () => {
+            if (!vietQrModal.value) return;
+            const inv = vietQrModal.value;
+            const res = await fetch(`/api/invoicesapi/${inv.id}/collect`, {
+                method:  'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ method: 'Chuyển khoản' })
+            });
+            if (res.ok) { inv.status = 'paid'; }
+            vietQrModal.value = null;
+        };
 
         // ── Load real data ──────────────────────────────────────────
         const loadData = async () => {
@@ -331,6 +393,7 @@ createApp({
 
         return { filter, search, modal, detailModal, printData, payMethod, invoices,
                  pending, paidCount, todayRevenue, filteredInvoices,
+                 vietQrModal, vietQrImageUrl, openVietQr, confirmVietQr,
                  viewDetail, collect, confirmCollect, printInvoice };
     }
 }).mount('#app');

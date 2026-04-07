@@ -3,14 +3,25 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SClinic.Data;
+using SClinic.Hubs;
 using SClinic.Services;
 using SClinic.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ── Kestrel: tăng giới hạn body cho upload ảnh AI ──────────────────────────
+builder.WebHost.ConfigureKestrel(opts =>
+    opts.Limits.MaxRequestBodySize = 20 * 1024 * 1024); // 20 MB
+
 // ── Database ───────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<ApplicationDbContext>(opts =>
     opts.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// ── HttpClient (for Gemini AI) ─────────────────────────────────────────────
+builder.Services.AddHttpClient();
+
+// ── SignalR (real-time notifications) ─────────────────────────────────────
+builder.Services.AddSignalR();
 
 // ── JWT + Cookie Authentication ────────────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:Key"]
@@ -160,12 +171,12 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// ── SignalR Hub ───────────────────────────────────────────────────────────
+app.MapHub<ClinicHub>("/clinicHub");
+
 // ── Routes ─────────────────────────────────────────────────────────────────
-// MapControllers() handles all [ApiController] attribute-routed endpoints
-// (e.g. [Route("api/admin")], [Route("api/treatments")], etc.)
 app.MapControllers();
 
-// Default MVC convention route for Razor views
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
