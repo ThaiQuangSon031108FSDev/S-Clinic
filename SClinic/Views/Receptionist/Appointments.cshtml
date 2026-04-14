@@ -438,6 +438,51 @@
         </div>
     </div>
 
+    <!-- ══ QR CODE BOOKING MODAL ════════════════════════════════════ -->
+    <div v-if="bookingQrAppt" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden">
+            <!-- Header -->
+            <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-teal-500 to-teal-600 text-white flex justify-between items-center">
+                <div>
+                    <p class="text-xs font-semibold opacity-80">Lịch hẹn đã được xác nhận</p>
+                    <h2 class="text-lg font-bold">📅 Mã QR Check-in</h2>
+                </div>
+                <button @@click="bookingQrAppt=null" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/40 font-bold flex items-center justify-center">✕</button>
+            </div>
+
+            <div class="p-5 text-center space-y-4">
+                <!-- Patient info -->
+                <div class="bg-slate-50 rounded-2xl p-3 text-left border border-slate-100">
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div><p class="text-slate-400 text-xs">Bệnh nhân</p><p class="font-bold text-slate-900">[[ bookingQrAppt.patient ]]</p></div>
+                        <div><p class="text-slate-400 text-xs">Bác sĩ</p><p class="text-slate-700">[[ bookingQrAppt.doctor ]]</p></div>
+                        <div><p class="text-slate-400 text-xs">Ngày</p><p class="text-slate-700">[[ bookingQrAppt.date ]]</p></div>
+                        <div><p class="text-slate-400 text-xs">Giờ</p><p class="text-slate-700">[[ bookingQrAppt.time ]]</p></div>
+                    </div>
+                </div>
+
+                <!-- QR Canvas rendered by qrcode.js -->
+                <div class="flex flex-col items-center gap-2">
+                    <div id="booking-qr-canvas" class="p-2 border-2 border-slate-200 rounded-2xl inline-block bg-white"></div>
+                    <p class="font-mono text-sm font-bold text-slate-600 tracking-widest">APPT-[[ bookingQrAppt.id ]]</p>
+                    <p class="text-xs text-slate-400">Khách xuất trình mã này khi đến check-in</p>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-3 pt-1">
+                    <button @@click="bookingQrAppt=null"
+                            class="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">
+                        Đóng
+                    </button>
+                    <button @@click="printQr"
+                            class="flex-1 py-2.5 bg-teal-600 text-white rounded-xl text-sm font-bold hover:bg-teal-700 shadow-md">
+                        🖨️ In QR Code
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 @section Scripts {
@@ -602,6 +647,15 @@ createApp({
                 const data = await res.json();
                 if (data.success || data.Success) {
                     showModal.value = false;
+                    // Hiện QR Code sau khi đặt lịch thành công
+                    const apptId = data.AppointmentId ?? data.appointmentId;
+                    bookingQrAppt.value = {
+                        id:      apptId,
+                        patient: f.fullName,
+                        doctor:  doctors.value.find(d => d.doctorId == f.doctorId)?.fullName ?? '',
+                        date:    f.date,
+                        time:    f.time,
+                    };
                     await loadAppts();
                 } else {
                     formError.value = data.message || 'Đặt lịch thất bại.';
@@ -776,6 +830,60 @@ createApp({
             } catch { scanError.value = 'Lỗi kết nối.'; }
         };
 
+        // \u2500\u2500 QR Code generation khi modal m\u1edf \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+        const { nextTick } = Vue;
+        watch(bookingQrAppt, async (val) => {
+            if (!val) return;
+            await nextTick(); // \u0111\u1ee3i Vue render xong DOM
+            const el = document.getElementById('booking-qr-canvas');
+            if (!el) return;
+            el.innerHTML = ''; // x\u00f3a QR c\u0169 n\u1ebfu c\u00f3
+            const tryRender = () => {
+                if (window.QRCode) {
+                    new QRCode(el, {
+                        text:          `APPT-${val.id}`,
+                        width:         192,
+                        height:        192,
+                        colorDark:     '#0f172a',
+                        colorLight:    '#ffffff',
+                        correctLevel:  QRCode.CorrectLevel.M
+                    });
+                } else {
+                    // QRCode ch\u01b0a load xong, th\u1eed l\u1ea1i sau 300ms
+                    setTimeout(tryRender, 300);
+                }
+            };
+            tryRender();
+        });
+
+        const printQr = () => {
+            const el = document.getElementById('booking-qr-canvas');
+            if (!el) return;
+            const img = el.querySelector('img') || el.querySelector('canvas');
+            if (!img) return;
+            const src = img.tagName === 'CANVAS' ? img.toDataURL() : img.src;
+            const info = bookingQrAppt.value;
+            const win = window.open('', '_blank', 'width=400,height=520');
+            win.document.write(`
+                <html><head><title>QR L\u1ecbch H\u1eb9n</title>
+                <style>body{font-family:Arial,sans-serif;text-align:center;padding:30px;color:#0f172a}
+                h2{color:#0d9488;margin-bottom:4px}p{margin:2px 0;font-size:13px}
+                img{border:2px solid #e2e8f0;border-radius:12px;margin:14px 0}
+                .code{font-family:monospace;font-size:16px;font-weight:700;letter-spacing:3px;color:#0d9488}
+                .footer{margin-top:16px;font-size:11px;color:#94a3b8}</style></head>
+                <body>
+                <h2>S-CLINIC</h2>
+                <p>\u0110\u1eb7t l\u1ecbch th\u00e0nh c\u00f4ng</p>
+                <img src="${src}" width="192" height="192"/>
+                <p class="code">APPT-${String(info.id).padStart(4,'0')}</p>
+                <p><b>${info.patient}</b> | BS: ${info.doctor}</p>
+                <p>${info.date} l\u00fac ${info.time}</p>
+                <p class="footer">Xu\u1ea5t tr\u00ecnh m\u00e3 QR n\u00e0y khi \u0111\u1ebfn check-in t\u1ea1i qu\u1ea7y l\u1ec5 t\u00e2n</p>
+                </body></html>`);
+            win.document.close();
+            setTimeout(() => { win.print(); win.close(); }, 500);
+        };
+
         return {
             todayStr, loading, appts, doctors, slots, slotsLoading,
             dateFilter, doctorFilter, statusFilter, search,
@@ -789,7 +897,7 @@ createApp({
             rescheduleSlotsLoading, rescheduleError, rescheduling,
             openReschedule, loadRescheduleSlots, submitReschedule,
             scannerOpen, scanResult, scanError, scanLoading, bookingQrAppt,
-            openScanner, closeScanner, startScanner, doCheckInFromScan,
+            openScanner, closeScanner, startScanner, doCheckInFromScan, printQr,
         };
     }
 }).mount('#app');

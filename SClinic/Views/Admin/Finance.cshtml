@@ -190,23 +190,23 @@
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-2">Phương thức thanh toán</label>
-                    <div class="grid grid-cols-3 gap-3">
-                        <button v-for="m in ['Tiền mặt','Chuyển khoản','Quẹt thẻ']" :key="m"
-                                @@click="payMethod=m"
-                                :class="payMethod===m ? 'border-brand-primary bg-teal-50 text-brand-primary' : 'border-slate-200 text-slate-600'"
-                                class="py-2.5 rounded-xl border-2 text-sm font-semibold transition-colors">
-                            [[ m ]]
+                    <div class="grid grid-cols-2 gap-3">
+                        <!-- Tiền mặt: chọn rồi xác nhận bình thường -->
+                        <button @@click="payMethod='Tiền mặt'"
+                                :class="payMethod==='Tiền mặt' ? 'border-brand-primary bg-teal-50 text-brand-primary' : 'border-slate-200 text-slate-600'"
+                                class="py-3 rounded-xl border-2 text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+                            💵 Tiền mặt
+                        </button>
+                        <!-- Chuyển khoản: mở VietQR luôn -->
+                        <button @@click="openVietQr(modal); modal=null"
+                                class="py-3 rounded-xl border-2 border-blue-400 bg-blue-50 text-blue-700 text-sm font-semibold hover:bg-blue-100 transition-colors flex items-center justify-center gap-2">
+                            💳 Chuyển khoản
                         </button>
                     </div>
                 </div>
             </div>
             <div class="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end">
                 <button @@click="modal=null" class="px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600">Huỷ</button>
-                <!-- 💳 VietQR button -->
-                <button @@click="openVietQr(modal); modal=null"
-                        class="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl text-sm font-bold hover:opacity-90 shadow-md">
-                    💳 QR Chuyển khoản
-                </button>
                 <button @@click="confirmCollect" class="px-6 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover shadow-md">✓ Xác nhận Thu</button>
             </div>
         </div>

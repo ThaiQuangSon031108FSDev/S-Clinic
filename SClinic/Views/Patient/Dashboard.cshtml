@@ -102,10 +102,16 @@
                     <h1 class="text-3xl font-extrabold text-slate-900">👋 Xin chào, @Model.FullName!</h1>
                     <p class="text-slate-500 mt-2">Chúc bạn một ngày tốt lành và rạng rỡ.</p>
                 </div>
-                <button @@click="bookingOpen=true"
-                        class="bg-brand-primary text-white px-5 py-2.5 rounded-full font-semibold hover:bg-brand-hover transition-colors shadow-md text-sm">
-                    + Đặt lịch khám mới
-                </button>
+                <div class="flex gap-3">
+                    <button @@click="showQr"
+                            class="bg-slate-800 text-white px-4 py-2.5 rounded-full font-semibold hover:bg-slate-700 transition-colors shadow-md text-sm flex items-center gap-2">
+                        📱 QR Check-in
+                    </button>
+                    <button @@click="bookingOpen=true"
+                            class="bg-brand-primary text-white px-5 py-2.5 rounded-full font-semibold hover:bg-brand-hover transition-colors shadow-md text-sm">
+                        + Đặt lịch khám mới
+                    </button>
+                </div>
             </div>
 
             <transition name="fade" mode="out-in">
@@ -264,7 +270,16 @@
                                         <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5 mt-2 inline-block">📝 @a.Notes</p>
                                     }
                                 </div>
-                                <p class="font-mono font-bold text-slate-500 text-sm">#APT-@a.AppointmentId.ToString("D4")</p>
+                                <div class="flex flex-col items-end gap-2">
+                                    <p class="font-mono font-bold text-slate-500 text-sm">#APT-@a.AppointmentId.ToString("D4")</p>
+                                    @if (a.Status == SClinic.Models.AppointmentStatus.Pending || a.Status == SClinic.Models.AppointmentStatus.Confirmed)
+                                    {
+                                        <button onclick="window._openQrFor(@a.AppointmentId)"
+                                                class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors shadow-sm">
+                                            📱 QR Check-in
+                                        </button>
+                                    }
+                                </div>
                             </div>
                             <div class="grid grid-cols-2 md:grid-cols-3 gap-4 py-4 border-t border-slate-100">
                                 <div><p class="text-xs text-slate-400 mb-1">Ngày khám</p><p class="font-bold text-slate-800">@a.Schedule?.WorkDate.ToString("dd/MM/yyyy")</p></div>
@@ -504,12 +519,71 @@
             </div>
         </div>
     </transition>
+    <!-- ══ QR CHECK-IN MODAL ════════════════════════════════════════════════ -->
+    <transition name="fade">
+        <div v-if="qrModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+            <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden">
+                <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-800 to-slate-900 text-white flex justify-between items-center">
+                    <div>
+                        <p class="text-xs opacity-70">Xuất trình tại quầy lễ tân</p>
+                        <h2 class="text-lg font-bold">📱 Mã QR Check-in</h2>
+                    </div>
+                    <button @@click="qrModal=false" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/40 font-bold flex items-center justify-center">✕</button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <!-- appointment selector -->
+                    <div v-if="upcomingAppts.length > 1">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Chọn lịch hẹn</label>
+                        <select v-model="selectedApptId"
+                                class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-brand-primary focus:outline-none">
+                            <option v-for="a in upcomingAppts" :key="a.id" :value="a.id">
+                                #APT-[[ String(a.id).padStart(4,'0') ]] · [[ a.date ]] [[ a.time ]] — BS [[ a.doctor ]]
+                            </option>
+                        </select>
+                    </div>
+                    <!-- Info card -->
+                    <div v-if="selectedAppt" class="bg-slate-50 rounded-2xl p-3 border border-slate-100 grid grid-cols-2 gap-2 text-sm">
+                        <div><p class="text-slate-400 text-xs">Ngày khám</p><p class="font-bold text-slate-900">[[ selectedAppt.date ]]</p></div>
+                        <div><p class="text-slate-400 text-xs">Giờ</p><p class="text-slate-700">[[ selectedAppt.time ]]</p></div>
+                        <div class="col-span-2"><p class="text-slate-400 text-xs">Bác sĩ</p><p class="text-slate-700">[[ selectedAppt.doctor ]]</p></div>
+                    </div>
+                    <!-- QR canvas -->
+                    <div class="flex flex-col items-center gap-2">
+                        <div id="patient-qr-canvas" class="p-2 border-2 border-slate-200 rounded-2xl inline-block bg-white min-h-[196px] min-w-[196px] flex items-center justify-center"></div>
+                        <p v-if="selectedAppt" class="font-mono text-sm font-bold text-slate-600 tracking-widest">APPT-[[ selectedAppt.id ]]</p>
+                    </div>
+                    <p v-if="upcomingAppts.length===0" class="text-center text-slate-400 text-sm py-2">
+                        ⏳ Bạn không có lịch hẹn nào đang chờ. Hãy đặt lịch trước!
+                    </p>
+                    <button @@click="qrModal=false"
+                            class="w-full py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors">
+                        Đóng
+                    </button>
+                </div>
+            </div>
+        </div>
+    </transition>
 
 </div>
 
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-const { createApp, ref, computed, onMounted, watch } = Vue;
+// Upcoming appointments injected from Razor (Pending/Confirmed, from today)
+const _upcomingAppts = [
+    @foreach (var a in appointments.Where(a =>
+        (a.Status == SClinic.Models.AppointmentStatus.Pending || a.Status == SClinic.Models.AppointmentStatus.Confirmed) &&
+        a.Schedule != null &&
+        a.Schedule.WorkDate >= DateOnly.FromDateTime(DateTime.Today)
+    ).OrderBy(a => a.Schedule!.WorkDate).ThenBy(a => a.Schedule!.TimeSlot))
+    {
+        var doctorName = (a.Schedule?.Doctor?.FullName ?? "").Replace("'", "\\'").Replace("\"", "\\\"");
+        <text>{ id: @a.AppointmentId, date: '@a.Schedule!.WorkDate.ToString("dd/MM/yyyy")', time: '@a.Schedule!.TimeSlot.ToString(@"hh\:mm")', doctor: '@Html.Raw(doctorName)' },</text>
+    }
+];
+</script>
+<script>
+const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
 createApp({
     delimiters: ['[[',']]'],
     setup() {
@@ -517,6 +591,50 @@ createApp({
         const bookingOpen = ref(false);
         const bookingTreatmentId = ref(null);
         const invoices = ref([]);
+
+        // ── QR Check-in ──────────────────────────────────────────────────────
+        const qrModal        = ref(false);
+        const upcomingAppts  = ref(_upcomingAppts);
+        const selectedApptId = ref(_upcomingAppts[0]?.id ?? null);
+        const selectedAppt   = computed(() =>
+            upcomingAppts.value.find(a => a.id === selectedApptId.value) ?? null
+        );
+
+        // renderQr: retry until DOM element exists (transition may delay insertion)
+        const renderQr = (apptId) => {
+            const id = apptId ?? selectedAppt.value?.id;
+            if (!id) return;
+            const tryRender = (attempt = 0) => {
+                const el = document.getElementById('patient-qr-canvas');
+                if (!el && attempt < 15) { setTimeout(() => tryRender(attempt + 1), 80); return; }
+                if (!el) return;
+                if (!window.QRCode && attempt < 15) { setTimeout(() => tryRender(attempt + 1), 80); return; }
+                if (!window.QRCode) return;
+                el.innerHTML = '';
+                new QRCode(el, {
+                    text:         `APPT-${id}`,
+                    width:        180, height: 180,
+                    colorDark:    '#0f172a',
+                    colorLight:   '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            };
+            // Delay 100ms để Vue transition hoàn tất rồi mới render
+            setTimeout(() => tryRender(), 100);
+        };
+
+        const showQr = () => { qrModal.value = true; renderQr(); };
+
+        // Re-render khi đổi lịch hẹn trong dropdown
+        watch(selectedApptId, (newId) => { if (qrModal.value) renderQr(newId); });
+
+        // Expose to window — Razor button gọi trực tiếp
+        window._openQrFor = (id) => {
+            selectedApptId.value = id;
+            qrModal.value = true;
+            renderQr(id);
+        };
+        // ─────────────────────────────────────────────────────────────────────
 
         // ── History state ─────────────────────────────────
         const historyRecords  = ref([]);
@@ -568,6 +686,7 @@ createApp({
         return {
             tab, bookingOpen, bookingTreatmentId, openBooking, invoices,
             historyRecords, historyLoading, historySearch, filteredHistory,
+            qrModal, upcomingAppts, selectedApptId, selectedAppt, showQr,
         };
     }
 }).mount('#app');
