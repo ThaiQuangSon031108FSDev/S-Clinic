@@ -15,7 +15,7 @@
     <template v-else>
         <!-- Breadcrumb -->
         <div class="flex items-center gap-2 text-sm text-slate-400">
-            <a href="/Doctor/Schedule" class="hover:text-brand-primary transition-colors">← Lịch làm việc</a>
+            <a href="/Doctor/Schedule" @@click.prevent="goBack" class="hover:text-brand-primary transition-colors">← Lịch làm việc</a>
             <span>/</span>
             <span class="text-slate-700 font-semibold">[[ appt.patientName ]]</span>
         </div>
@@ -331,10 +331,24 @@ createApp({
             rxList.value.reduce((sum, r) => sum + r.price * r.qty, 0));
 
         const isDisabled = computed(() => {
-            if (!appt.value.isPackage && appt.value.serviceType !== 2)
-                return !form.value.diagnosis.trim();
+            // DOC_02: Check diagnosis if it's a consultation
+            const isConsultation = !appt.value.isPackage && appt.value.serviceType !== 2;
+            if (isConsultation && !form.value.diagnosis.trim()) return true;
+
+            // DOC_09: Select at least 1 service/medicine
+            if (rxList.value.length === 0) return true;
+
             return false;
         });
+
+        const goBack = () => {
+            // DOC_10: Warning if form is dirty
+            const isDirty = form.value.diagnosis.trim() || form.value.notes.trim() || rxList.value.length > 0;
+            if (isDirty) {
+                if (!confirm('Dữ liệu đang nhập sẽ bị mất. Bạn có chắc chắn muốn quay lại?')) return;
+            }
+            window.location.href = '/Doctor/Schedule';
+        };
 
         const onFile = (e, side) => {
             const file = e.target.files?.[0];
@@ -436,7 +450,7 @@ createApp({
                  fileBefore, fileAfter, previewBefore, previewAfter,
                  loading, saving, successMsg, errMsg, isDisabled,
                  aiLoading, aiError, analyzeAI,
-                 rxTotal, addRx, onFile, submit };
+                 rxTotal, addRx, onFile, submit, goBack };
     }
 }).mount('#app');
 </script>

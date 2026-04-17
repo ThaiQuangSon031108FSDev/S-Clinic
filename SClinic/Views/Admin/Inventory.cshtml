@@ -1,9 +1,12 @@
 @{
     ViewData["Title"] = "Kho thuốc";
     Layout = "~/Views/Shared/_StaffLayout.cshtml";
+    var pageTitle = "Kho thuốc";
 }
 
-<div id="app">
+<style>[v-cloak]{display:none!important}</style>
+
+<div id="app" v-cloak>
     <!-- Actions -->
     <div class="flex flex-col sm:flex-row gap-3 mb-6">
         <input type="text" v-model="search" placeholder="Tìm tên thuốc, danh mục..."

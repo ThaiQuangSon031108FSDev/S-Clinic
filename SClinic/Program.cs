@@ -79,6 +79,7 @@ builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<OtpService>();
 builder.Services.AddSingleton<EmailService>();
+builder.Services.AddHttpContextAccessor();
 
 // ── Swagger (Bug #15: API testing for testers) ────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
@@ -224,5 +225,41 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+// ── ONE-TIME SETUP (any environment, chỉ chạy khi DB trống) ───────────────
+// GET /setup  → tạo Roles + Admin account lần đầu tiên
+// ⚠️  Tự vô hiệu hoá ngay khi đã có account trong hệ thống
+app.MapGet("/setup", async (ApplicationDbContext db) =>
+{
+    if (await db.Accounts.AnyAsync())
+        return Results.Ok(new { done = false, message = "Đã khởi tạo rồi. Endpoint này đã bị vô hiệu hoá." });
+
+    // Seed Roles
+    var roleNames = new[] { "Admin", "Doctor", "Receptionist", "Cashier", "Patient" };
+    foreach (var rn in roleNames)
+        if (!await db.Roles.AnyAsync(r => r.RoleName == rn))
+            db.Roles.Add(new SClinic.Models.Role { RoleName = rn });
+    await db.SaveChangesAsync();
+
+    // Tạo Admin account
+    var adminRole = await db.Roles.FirstAsync(r => r.RoleName == "Admin");
+    const string defaultPass = "Sclinic@2026!";
+    db.Accounts.Add(new SClinic.Models.Account
+    {
+        Email        = "admin@sclinic.vn",
+        PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultPass, workFactor: 11),
+        RoleId       = adminRole.RoleId,
+        IsActive     = true
+    });
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new
+    {
+        done    = true,
+        message = "✅ Khởi tạo thành công!",
+        login   = new { email = "admin@sclinic.vn", password = defaultPass, warning = "ĐỔI MẬT KHẨU NGAY!" }
+    });
+});
+
 await app.RunAsync();
+
 

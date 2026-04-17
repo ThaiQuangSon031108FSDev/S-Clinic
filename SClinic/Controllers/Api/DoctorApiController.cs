@@ -264,6 +264,30 @@ public class DoctorApiController(
             await db.SaveChangesAsync();
         }
 
+        // 🔔 SignalR: notify Cashier & Admin that session is done
+        var sessionPatient = await db.Patients.FindAsync(appt.PatientId);
+        var invoiceId = await db.Invoices
+            .Where(i => i.AppointmentId == appointmentId)
+            .Select(i => i.InvoiceId)
+            .FirstOrDefaultAsync();
+
+        await hub.Clients.Group("Cashier")
+            .SendAsync("ReceiveNotification", new
+            {
+                type    = "invoice",
+                icon    = "💸",
+                title   = "Bệnh nhân khám xong",
+                message = $"{sessionPatient?.FullName ?? "Bệnh nhân"} vừa hoàn tất điều trị. Hóa đơn #{invoiceId} đang chờ thanh toán."
+            });
+        await hub.Clients.Group("Admin")
+            .SendAsync("ReceiveNotification", new
+            {
+                type    = "invoice",
+                icon    = "💰",
+                title   = "Hóa đơn mới",
+                message = $"HD #{invoiceId} của {sessionPatient?.FullName ?? "BN"} — chờ thu ngân xử lý."
+            });
+
         return Ok(new { success = true, message = "Đã hoàn tất buổi điều trị và chuyển sang Thu Ngân." });
     }
 

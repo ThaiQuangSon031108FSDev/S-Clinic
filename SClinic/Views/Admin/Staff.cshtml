@@ -81,6 +81,10 @@
                                     class="text-xs font-bold text-slate-600 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">
                                 Sửa
                             </button>
+                            <button @@click="resendWelcome(s)"
+                                    class="text-xs font-bold text-teal-600 border border-teal-200 px-3 py-1.5 rounded-lg hover:bg-teal-50 transition-colors">
+                                ✉️ Email
+                            </button>
                             <button @@click="toggleActive(s)"
                                     :class="s.isActive ? 'text-red-600 border-red-200 hover:bg-red-50' : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'"
                                     class="text-xs font-bold border px-3 py-1.5 rounded-lg transition-colors">
@@ -126,12 +130,16 @@
                             <option value="Cashier">Cashier — Thu ngân</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1.5">
-                            [[ editMode ? 'Mật khẩu mới (để trống = giữ nguyên)' : 'Mật khẩu tạm *' ]]
-                        </label>
+                    <!-- Mật khẩu: chỉ hiện khi edit, tạo mới dùng email -->
+                    <div v-if="editMode">
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Mật khẩu mới (trống = giữ nguyên)</label>
                         <input v-model="form.password" type="password" placeholder="Tối thiểu 6 ký tự"
                                class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary focus:outline-none" />
+                    </div>
+                    <div v-else class="flex items-end">
+                        <div class="w-full bg-teal-50 border border-teal-200 rounded-xl px-3 py-2.5 text-xs text-teal-700 font-semibold flex items-center gap-2">
+                            📧 Email mời đặt mật khẩu sẽ được gửi tự động
+                        </div>
                     </div>
                 </div>
 
@@ -172,7 +180,7 @@
                 <button @@click="saveStaff" :disabled="saving"
                         class="px-5 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover shadow-sm disabled:opacity-50">
                     <span v-if="saving">Đang lưu...</span>
-                    <span v-else>[[ editMode ? 'Cập nhật' : '+ Tạo tài khoản' ]]</span>
+                    <span v-else>[[ editMode ? 'Cập nhật' : '✉️ Tạo & Gửi email' ]]</span>
                 </button>
             </div>
         </div>
@@ -233,7 +241,7 @@ createApp({
             if (!f.email.trim())                            { formError.value = 'Vui lòng nhập email.'; return; }
             if (!f.email.includes('.') || f.email.split('').filter(c=>c==='@@').length !== 1 || f.email.startsWith('@@') || f.email.endsWith('@@')) { formError.value = 'Email kh\u00f4ng h\u1ee3p l\u1ec7 (VD: name@@domain.com).'; return; }
             if (!f.role)                                    { formError.value = 'Vui lòng chọn vai trò.'; return; }
-            if (!editMode.value && f.password.length < 6)  { formError.value = 'Mật khẩu tối thiểu 6 ký tự.'; return; }
+            // Mật khẩu: chỉ validate khi edit (tạo mới thì hệ thống tự sinh)
             if (editMode.value && f.password && f.password.length < 6) { formError.value = 'Mật khẩu mới phải ít nhất 6 ký tự.'; return; }
             if (f.role === 'Doctor' && !f.specialty.trim()) { formError.value = 'Vui lòng nhập chuyên khoa.'; return; }
 
@@ -246,7 +254,20 @@ createApp({
                     body: JSON.stringify(form.value)
                 });
                 const data = await res.json();
-                if (data.success) { modal.value = false; await load(); }
+                if (data.success) {
+                    modal.value = false;
+                    await load();
+                    if (!editMode.value) {
+                        if (data.emailSent) {
+                            alert('✅ Tài khoản đã tạo! Email mời đặt mật khẩu đã gửi tới ' + form.value.email);
+                        } else {
+                            const link = data.setPasswordUrl;
+                            if (link && confirm('⚠️ Gửi email thất bại!\nBao gồm link tự cài mật khẩu:\n' + link + '\n\nCopy link vào clipboard?')) {
+                                navigator.clipboard.writeText(link);
+                            }
+                        }
+                    }
+                }
                 else formError.value = data.message || 'Lỗi lưu dữ liệu.';
             } catch { formError.value = 'Lỗi kết nối server.'; }
             saving.value = false;
@@ -261,8 +282,23 @@ createApp({
             } catch { alert('Lỗi thao tác.'); }
         };
 
+        const resendWelcome = async (s) => {
+            if (!confirm(`Gửi lại email mời đặt mật khẩu tới ${s.email}?`)) return;
+            try {
+                const res  = await fetch(`/api/admin/staff/${s.accountId}/resend-welcome`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                } else {
+                    if (data.setPasswordUrl && confirm('⚠️ ' + data.message + '\n\nCopy link tự đặt mật khẩu vào clipboard?')) {
+                        navigator.clipboard.writeText(data.setPasswordUrl);
+                    }
+                }
+            } catch { alert('Lỗi kết nối.'); }
+        };
+
         return { staff, filteredStaff, filterRole, search, modal, editMode, saving, form, formError,
-                 openCreate, openEdit, saveStaff, toggleActive };
+                 openCreate, openEdit, saveStaff, toggleActive, resendWelcome };
     }
 }).mount('#app');
 </script>

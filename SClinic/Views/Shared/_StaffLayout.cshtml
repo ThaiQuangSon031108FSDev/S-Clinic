@@ -62,7 +62,6 @@
                         <a asp-controller="Receptionist" asp-action="Dashboard"
                            class="@(pageTitle=="Hàng đợi"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
                             📋 Check-in Hàng đợi
-                            <span class="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">!</span>
                         </a>
                         <a asp-controller="Receptionist" asp-action="Appointments"
                            class="@(pageTitle=="Lịch hẹn"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
@@ -97,9 +96,8 @@
                     <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Tài Chính &amp; Danh Mục</p>
                     <nav class="space-y-1">
                         <a asp-controller="Admin" asp-action="Finance"
-                           class="@(pageTitle=="Thu ngân"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium relative">
+                           class="@(pageTitle=="Thu ngân"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
                             💵 Thu ngân Hóa đơn
-                            <span class="absolute right-3 bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">!</span>
                         </a>
                     </nav>
                 </div>
@@ -122,6 +120,10 @@
                         <a asp-controller="Admin" asp-action="Catalog"
                            class="@(pageTitle=="Danh mục hệ thống"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
                             🗂️ Danh mục hệ thống
+                        </a>
+                        <a asp-controller="Admin" asp-action="Inventory"
+                           class="@(pageTitle=="Kho thuốc"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
+                            💊 Kho thuốc
                         </a>
                     </nav>
                 </div>
@@ -156,9 +158,9 @@
                 <p class="text-sm text-slate-500">Hôm nay: @DateTime.Now.ToString("dddd, dd/MM/yyyy")</p>
             </div>
             <div class="flex gap-4 items-center">
-                <button class="relative p-2 text-slate-400 hover:text-brand-primary transition-colors">
+                <button data-bell onclick="window._bellCount=0;document.getElementById('bell-badge').style.display='none';" class="relative p-2 text-slate-400 hover:text-brand-primary transition-colors" title="Thông báo">
                     🔔
-                    <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
+                    <span id="bell-badge" style="display:none" class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">0</span>
                 </button>
                 <div class="flex items-center gap-3 pl-4 ml-2 border-l border-slate-200">
                     <img src="@avatarUrl" class="w-8 h-8 rounded-full border border-slate-300" alt="Avatar" />
@@ -263,12 +265,28 @@
         .withAutomaticReconnect()
         .build();
 
+    // Track unread count
+    window._bellCount = 0;
+
     connection.on('ReceiveNotification', function(data) {
-        console.log('[SignalR RECEIVE] @DateTime.Now.ToString("HH:mm:ss"): ', data);
+        console.log('[SignalR LIVE]', new Date().toLocaleTimeString(), data);
         showToast(data.icon || '🔔', data.title || 'Thông báo', data.message || '');
-        // Bell shake on existing bell button
+
+        // Update bell badge counter
+        window._bellCount++;
+        var badge = document.getElementById('bell-badge');
+        if (badge) {
+            badge.textContent = window._bellCount > 9 ? '9+' : window._bellCount;
+            badge.style.display = 'flex';
+        }
+        // Bell shake animation
         var bell = document.querySelector('[data-bell]');
-        if (bell) { bell.classList.add('animate-bounce'); setTimeout(function(){ bell.classList.remove('animate-bounce'); }, 1000); }
+        if (bell) {
+            bell.classList.add('animate-bounce');
+            setTimeout(function(){ bell.classList.remove('animate-bounce'); }, 1200);
+        }
+        // Play notification sound
+        try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJOtq5F1W1JlkbCxmmFNT2yew7GXakxIYJG8u6N0UUpin73GsHtHMlKJw9nJfEMaTYjL5s1tIgAmfcXt41kLAB2E1/DcOvf9KYvk9dk96EY2ofr/6ks=').play(); } catch(e) {}
     });
 
     connection.start().then(function() {

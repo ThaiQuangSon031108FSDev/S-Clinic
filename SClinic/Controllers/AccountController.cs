@@ -51,7 +51,6 @@ public class AccountController(
             Expires  = DateTimeOffset.UtcNow.AddHours(8)
         });
 
-        // Cookie-auth principal (for [Authorize] on MVC controllers)
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, account.AccountId.ToString()),
@@ -181,7 +180,29 @@ public class AccountController(
         }
 
         await db.SaveChangesAsync();
-        return Json(new { success = true });
+
+        // ── Auto Sign In ───────────────────────────────────────────
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, account.AccountId.ToString()),
+            new(ClaimTypes.Email, account.Email),
+            new(ClaimTypes.Role, patientRole.RoleName),
+            new(ClaimTypes.Name, account.Email),
+        };
+        var identity  = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var principal = new ClaimsPrincipal(identity);
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal,
+            new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8) });
+
+        // JWT (for completeness)
+        var token = JwtHelper.GenerateToken(account, config);
+        Response.Cookies.Append("sc_token", token, new CookieOptions
+        {
+            HttpOnly = true, Secure = false, SameSite = SameSiteMode.Strict,
+            Expires  = DateTimeOffset.UtcNow.AddHours(8)
+        });
+
+        return Json(new { success = true, redirectUrl = "/Patient/Dashboard" });
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -197,6 +218,16 @@ public class AccountController(
     }
 
     public IActionResult AccessDenied() => View();
+
+    // ── Staff: Set Password via welcome email link ──────────────────
+    [HttpGet]
+    public IActionResult SetPassword(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return RedirectToAction("Login");
+        ViewData["Token"] = token;
+        return View();
+    }
 
     // ── helpers ────────────────────────────────────────────────────
     private IActionResult RedirectByRole(string? role = null)

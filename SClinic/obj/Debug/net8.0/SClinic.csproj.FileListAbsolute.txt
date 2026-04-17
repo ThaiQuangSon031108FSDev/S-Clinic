@@ -147,3 +147,4 @@ D:\FPT\Spring 2026\Block2\NET202\ASM\SClinic\obj\Debug\net8.0\refint\SClinic.dll
 D:\FPT\Spring 2026\Block2\NET202\ASM\SClinic\obj\Debug\net8.0\SClinic.pdb
 D:\FPT\Spring 2026\Block2\NET202\ASM\SClinic\obj\Debug\net8.0\SClinic.genruntimeconfig.cache
 D:\FPT\Spring 2026\Block2\NET202\ASM\SClinic\obj\Debug\net8.0\ref\SClinic.dll
+D:\FPT\Spring 2026\Block2\NET202\ASM\SClinic\bin\Debug\net8.0\appsettings.Production.json

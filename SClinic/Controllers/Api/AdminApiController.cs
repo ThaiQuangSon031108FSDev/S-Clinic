@@ -3,13 +3,21 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SClinic.Data;
 using SClinic.Models;
+using SClinic.Services;
 
 namespace SClinic.Controllers.Api;
 
 [ApiController, Route("api/admin")]
 [Authorize(Roles = "Admin")]
-public class AdminApiController(ApplicationDbContext db) : ControllerBase
+public class AdminApiController(
+    ApplicationDbContext db,
+    EmailService emailService,
+    IHttpContextAccessor httpContextAccessor,
+    ILogger<AdminApiController> logger) : ControllerBase
 {
+    // ── In-memory set-password token store (token → (accountId, expiry)) ─────
+    private static readonly Dictionary<string, (int AccountId, DateTime Expiry)> _setPasswordTokens = new();
+
     // ── GET /api/admin/staff ──────────────────────────────────────────────────
     [HttpGet("staff")]
     public async Task<IActionResult> GetStaff()
@@ -49,23 +57,21 @@ public class AdminApiController(ApplicationDbContext db) : ControllerBase
         if (role is null)
             return Ok(new { success = false, message = "Vai trò không hợp lệ." });
 
-        if (string.IsNullOrWhiteSpace(dto.Password) || dto.Password.Length < 6)
-            return Ok(new { success = false, message = "Mật khẩu phải ít nhất 6 ký tự." });
+        // Auto-generate a random temp password (never shown to admin)
+        var tempPassword = Guid.NewGuid().ToString("N")[..12] + "Sc1!";
 
         await using var tx = await db.Database.BeginTransactionAsync();
 
-        // 1. Create Account
         var account = new Account
         {
             Email        = dto.Email.Trim().ToLower(),
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword),
             RoleId       = role.RoleId,
             IsActive     = true
         };
         db.Accounts.Add(account);
         await db.SaveChangesAsync();
 
-        // 2. If Doctor → create Doctor profile
         if (dto.Role == "Doctor")
         {
             db.Doctors.Add(new Doctor
@@ -78,7 +84,34 @@ public class AdminApiController(ApplicationDbContext db) : ControllerBase
         }
 
         await tx.CommitAsync();
-        return Ok(new { success = true, accountId = account.AccountId });
+
+        // ── Generate set-password token & send welcome email ─────────────────
+        var token   = Guid.NewGuid().ToString("N");
+        var expiry  = DateTime.UtcNow.AddHours(24);
+        lock (_setPasswordTokens) { _setPasswordTokens[token] = (account.AccountId, expiry); }
+
+        var req     = httpContextAccessor.HttpContext!.Request;
+        var baseUrl = $"{req.Scheme}://{req.Host}";
+        var setPasswordUrl = $"{baseUrl}/Account/SetPassword?token={token}";
+
+        var emailSent = false;
+        try
+        {
+            await emailService.SendWelcomeStaffAsync(dto.Email, dto.FullName, dto.Role, setPasswordUrl);
+            emailSent = true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Welcome email failed for {Email} — account created OK", dto.Email);
+        }
+
+        return Ok(new {
+            success = true,
+            accountId = account.AccountId,
+            emailSent,
+            // Trả về URL để Admin copy thủ công nếu email lỗi
+            setPasswordUrl = emailSent ? null : setPasswordUrl
+        });
     }
 
     // ── PUT /api/admin/staff/{id} — cập nhật thông tin ───────────────────────
@@ -123,6 +156,75 @@ public class AdminApiController(ApplicationDbContext db) : ControllerBase
         account.IsActive = !account.IsActive;
         await db.SaveChangesAsync();
         return Ok(new { success = true, isActive = account.IsActive });
+    }
+
+    // ── POST /api/admin/staff/{id}/resend-welcome — gửi lại welcome email ────
+    [HttpPost("staff/{id:int}/resend-welcome")]
+    public async Task<IActionResult> ResendWelcome(int id)
+    {
+        var account = await db.Accounts
+            .Include(a => a.Doctor)
+            .Include(a => a.Role)
+            .FirstOrDefaultAsync(a => a.AccountId == id);
+        if (account is null)
+            return Ok(new { success = false, message = "Không tìm thấy tài khoản." });
+
+        var token  = Guid.NewGuid().ToString("N");
+        var expiry = DateTime.UtcNow.AddHours(24);
+        lock (_setPasswordTokens) { _setPasswordTokens[token] = (id, expiry); }
+
+        var req = httpContextAccessor.HttpContext!.Request;
+        var setPasswordUrl = $"{req.Scheme}://{req.Host}/Account/SetPassword?token={token}";
+        var staffName = account.Doctor?.FullName ?? account.Email.Split('@')[0];
+
+        try
+        {
+            await emailService.SendWelcomeStaffAsync(account.Email, staffName, account.Role.RoleName, setPasswordUrl);
+            return Ok(new { success = true, message = "Đã gửi lại email mời đặt mật khẩu." });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Resend welcome failed for {Email}", account.Email);
+            return Ok(new { success = false, message = "Gửi email thất bại. Kiểm tra cấu hình SMTP.", setPasswordUrl });
+        }
+    }
+
+    // ── GET/POST /api/admin/staff/verify-set-password-token ──────────────────
+    [AllowAnonymous]
+    [HttpGet("verify-set-password-token")]
+    public IActionResult VerifyToken([FromQuery] string token)
+    {
+        lock (_setPasswordTokens)
+        {
+            if (_setPasswordTokens.TryGetValue(token, out var entry) && entry.Expiry > DateTime.UtcNow)
+                return Ok(new { valid = true, accountId = entry.AccountId });
+        }
+        return Ok(new { valid = false });
+    }
+
+    [AllowAnonymous]
+    [HttpPost("set-password")]
+    public async Task<IActionResult> SetPassword([FromBody] SetPasswordDto dto)
+    {
+        int accountId;
+        lock (_setPasswordTokens)
+        {
+            if (!_setPasswordTokens.TryGetValue(dto.Token, out var entry) || entry.Expiry <= DateTime.UtcNow)
+                return Ok(new { success = false, message = "Link đã hết hạn hoặc không hợp lệ." });
+            accountId = entry.AccountId;
+            _setPasswordTokens.Remove(dto.Token); // one-time use
+        }
+
+        if (dto.Password.Length < 8)
+            return Ok(new { success = false, message = "Mật khẩu phải ít nhất 8 ký tự." });
+
+        var account = await db.Accounts.FindAsync(accountId);
+        if (account is null)
+            return Ok(new { success = false, message = "Không tìm thấy tài khoản." });
+
+        account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+        await db.SaveChangesAsync();
+        return Ok(new { success = true });
     }
 
     // ── GET /api/admin/schedules — xem lịch tất cả bác sĩ ───────────────────
@@ -294,3 +396,6 @@ public record StaffDto(
     int AccountId, string FullName, string Email, string Role,
     string? Password, string? Specialty,
     int? YearsExp, string? Qualification, string? Bio);
+
+public record SetPasswordDto(string Token, string Password);
+

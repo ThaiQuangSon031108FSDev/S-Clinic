@@ -1,14 +1,19 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SClinic.Data;
+using SClinic.Hubs;
 using SClinic.Models;
 
 namespace SClinic.Controllers.Api;
 
 [ApiController, Route("api/[controller]")]
 [Authorize(Roles = "Admin,Cashier,Receptionist")]
-public class InvoicesApiController(ApplicationDbContext db) : ControllerBase
+public class InvoicesApiController(
+    ApplicationDbContext db,
+    IHubContext<ClinicHub> hub,
+    SClinic.Services.Interfaces.IInvoiceService invoiceService) : ControllerBase
 {
     // GET api/invoicesapi — all invoices (optionally filter by status)
     [HttpGet]
@@ -75,31 +80,34 @@ public class InvoicesApiController(ApplicationDbContext db) : ControllerBase
     [HttpPatch("{id}/collect")]
     public async Task<IActionResult> Collect(int id, [FromBody] CollectDto dto)
     {
-        var inv = await db.Invoices
-            .Include(i => i.InvoiceDetails)
-            .FirstOrDefaultAsync(i => i.InvoiceId == id);
-
-        if (inv is null) return NotFound();
-        if (inv.PaymentStatus == PaymentStatus.Paid)
-            return BadRequest("Hóa đơn đã được thanh toán.");
-
-        inv.PaymentStatus = PaymentStatus.Paid;
-
-        foreach (var detail in inv.InvoiceDetails)
+        try 
         {
-            if (detail.ItemType == InvoiceItemType.Medicine && detail.MedicineId.HasValue)
-            {
-                var med = await db.Medicines.FindAsync(detail.MedicineId.Value);
-                if (med != null)
-                {
-                    med.StockQuantity -= detail.Quantity;
-                    if (med.StockQuantity < 0) med.StockQuantity = 0;
-                }
-            }
-        }
+            var success = await invoiceService.PayInvoiceAsync(id);
+            if (!success)
+                return BadRequest("Hóa đơn đã được thanh toán hoặc không tồn tại.");
 
-        await db.SaveChangesAsync();
-        return Ok(new { id, status = "Paid", paymentMethod = dto.Method });
+            // 🔔 SignalR: notify Admin that payment was collected
+            var inv = await invoiceService.GetInvoiceAsync(id);
+            var patientName = inv?.Record?.Appointment?.Patient?.FullName 
+                           ?? inv?.Appointment?.Patient?.FullName ?? "Bệnh nhân";
+
+            if (inv != null)
+            {
+                await hub.Clients.Group("Admin").SendAsync("ReceiveNotification", new
+                {
+                    type    = "payment",
+                    icon    = "✅",
+                    title   = "Đã thu tiền",
+                    message = $"Hóa đơn #{id} của {patientName} — {inv.TotalAmount:N0}đ ({dto.Method})"
+                });
+            }
+
+            return Ok(new { id, status = "Paid", paymentMethod = dto.Method });
+        }
+        catch (InvalidOperationException ex) 
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     // POST api/invoicesapi/create-from-appointment — Kanban: create pending invoice when moving to cashier
