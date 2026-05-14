@@ -456,11 +456,7 @@ const SessionLogger = {
     }
 };
 
-/* ──────────────────────────── Stub components (khác) ─────────────────── */
-const ReceptionistDashboard = { template: `<div class="max-w-4xl mx-auto px-4 py-10"><h1 class="text-3xl font-bold">Receptionist Dashboard</h1></div>` };
-const AppointmentManager    = { template: `<div class="max-w-4xl mx-auto px-4 py-10"><h1 class="text-3xl font-bold">Appointments</h1></div>` };
-const RegisterPatientForm   = { template: `<div class="max-w-xl mx-auto px-4 py-10"><h1 class="text-3xl font-bold">Register Patient</h1></div>` };
-
+/* ──────────────────────────── Mount SessionLogger ─────────────────── */
 createApp({
-    components: { ReceptionistDashboard, AppointmentManager, SessionLogger, RegisterPatientForm }
+    components: { SessionLogger }
 }).mount('#app');

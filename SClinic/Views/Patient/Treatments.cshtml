@@ -1,11 +1,94 @@
+@model IEnumerable<SClinic.Models.PatientTreatment>
 @{
-    ViewData["Title"] = "My Treatment Packages";
+    ViewData["Title"] = "Gói Liệu Trình Đã Mua";
+    // Assuming Patient uses a specific layout or _Layout
 }
 
-<div id="app">
-    <treatment-list></treatment-list>
+<div id="app" class="max-w-4xl mx-auto px-4 py-10">
+    <h2 class="text-3xl font-extrabold text-slate-900 mb-8">Gói Liệu Trình Đã Mua</h2>
+
+    @if (!Model.Any())
+    {
+        <div class="bg-white rounded-3xl p-16 text-center border border-slate-200 shadow-sm">
+            <div class="text-6xl mb-4">📦</div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Bạn chưa có gói liệu trình nào</h3>
+            <p class="text-slate-500">Hãy đặt lịch khám để được bác sĩ tư vấn phác đồ điều trị phù hợp nhất.</p>
+            <a href="/Patient/Book" class="inline-block mt-6 px-6 py-3 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-hover shadow-md transition-all">
+                Đặt lịch khám ngay
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="space-y-6">
+            @foreach (var t in Model)
+            {
+                var pct = t.TotalSessions > 0 ? (int)Math.Round((double)t.UsedSessions / t.TotalSessions * 100) : 0;
+                var isActive = t.Status == SClinic.Models.TreatmentStatus.Active;
+                var borderClass = isActive ? "border-brand-primary/40 ring-4 ring-brand-primary/5" : "border-slate-200";
+
+                <div class="bg-white p-8 rounded-3xl shadow-sm border-2 @borderClass relative overflow-hidden group hover:shadow-md transition-all">
+                    @if (isActive)
+                    {
+                        <div class="absolute top-0 right-0 bg-brand-primary text-white text-xs font-bold px-4 py-1.5 rounded-bl-2xl shadow-sm">Đang kích hoạt</div>
+                    }
+                    else if (t.Status == SClinic.Models.TreatmentStatus.Completed)
+                    {
+                        <div class="absolute top-0 right-0 bg-slate-200 text-slate-600 text-xs font-bold px-4 py-1.5 rounded-bl-2xl">Đã hoàn thành</div>
+                    }
+
+                    <div class="flex flex-col md:flex-row gap-6 items-start">
+                        <!-- Icon -->
+                        <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shrink-0 @(isActive ? "bg-teal-50 text-teal-600" : "bg-slate-50 text-slate-400")">
+                            ✨
+                        </div>
+
+                        <!-- Content -->
+                        <div class="flex-1 w-full">
+                            <h3 class="text-2xl font-bold text-slate-900 mb-1 group-hover:text-brand-primary transition-colors">@t.Package?.PackageName</h3>
+                            <div class="flex flex-wrap gap-4 text-sm text-slate-500 mb-6 font-medium">
+                                <span class="flex items-center gap-1.5">👨‍⚕️ BS. @(t.PrimaryDoctor?.FullName ?? "Chưa chỉ định")</span>
+                                <span class="flex items-center gap-1.5">💰 @(t.Package?.Price.ToString("N0"))đ</span>
+                            </div>
+
+                            <!-- Progress Bars -->
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-sm font-bold">
+                                    <span class="text-brand-primary">Tiến độ: @t.UsedSessions / @t.TotalSessions buổi</span>
+                                    <span class="text-slate-400">@pct%</span>
+                                </div>
+                                <div class="flex gap-1.5">
+                                    @for (int i = 1; i <= t.TotalSessions; i++)
+                                    {
+                                        var isDone = i <= t.UsedSessions;
+                                        <div class="h-3 flex-1 rounded-sm transition-all @(isDone ? "bg-brand-primary" : "bg-slate-100")"></div>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Actions -->
+                            @if (isActive)
+                            {
+                                <div class="mt-8 flex flex-wrap gap-3">
+                                    <a href="/Patient/Book?treatmentId=@t.PatientTreatmentId"
+                                       class="px-5 py-2.5 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-hover shadow-md transition-all flex items-center gap-2">
+                                        📅 Đặt lịch tái khám
+                                    </a>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
 </div>
 
 @section Scripts {
-    <script type="module" src="~/js/treatment.js"></script>
+    <script>
+        const { createApp } = Vue;
+        createApp({
+            delimiters: ['[[', ']]']
+        }).mount('#app');
+    </script>
 }

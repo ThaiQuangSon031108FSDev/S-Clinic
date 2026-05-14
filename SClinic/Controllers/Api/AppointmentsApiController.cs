@@ -111,10 +111,18 @@ public class AppointmentsApiController(
         var result = allSlots.Select(t =>
         {
             var slot = existing.FirstOrDefault(s => s.TimeSlot.ToString(@"HH\:mm") == t);
+            
+            bool isPast = false;
+            var now = DateTime.Now;
+            if (d == DateOnly.FromDateTime(now) && TimeOnly.TryParseExact(t, "HH:mm", out var parsedTime))
+            {
+                if (parsedTime <= TimeOnly.FromDateTime(now)) isPast = true;
+            }
+
             return new
             {
                 Time      = t,
-                Available = slot == null || slot.CurrentBooked < slot.MaxPatients,
+                Available = !isPast && (slot == null || slot.CurrentBooked < slot.MaxPatients),
                 ScheduleId = slot?.ScheduleId
             };
         }).Where(s => s.Available).ToList();
@@ -154,6 +162,15 @@ public class AppointmentsApiController(
     {
         if (string.IsNullOrWhiteSpace(dto.FullName) || dto.DoctorId <= 0 || !dto.Date.HasValue)
             return BadRequest("Thiếu thông tin bắt buộc.");
+            
+        var targetTime = TimeOnly.FromTimeSpan(dto.Time);
+        var workDate = DateOnly.FromDateTime(dto.Date.Value);
+        
+        if (workDate < DateOnly.FromDateTime(DateTime.Today))
+            return BadRequest("Không thể đặt lịch ngày đã qua.");
+            
+        if (workDate == DateOnly.FromDateTime(DateTime.Today) && targetTime <= TimeOnly.FromDateTime(DateTime.Now))
+            return BadRequest("Không thể đặt lịch vào khung giờ đã qua.");
 
         // Find or create patient by Phone
         var patient = await db.Patients.FirstOrDefaultAsync(p => p.Phone == dto.Phone);
@@ -171,15 +188,14 @@ public class AppointmentsApiController(
         }
 
         // Find or create schedule
-        var targetTime = TimeOnly.FromTimeSpan(dto.Time);
         var schedule = await db.DoctorSchedules.FirstOrDefaultAsync(s => 
-            s.DoctorId == dto.DoctorId && s.WorkDate == DateOnly.FromDateTime(dto.Date.Value) && s.TimeSlot == targetTime);
+            s.DoctorId == dto.DoctorId && s.WorkDate == workDate && s.TimeSlot == targetTime);
         if (schedule == null)
         {
             schedule = new DoctorSchedule
             {
                 DoctorId = dto.DoctorId,
-                WorkDate = DateOnly.FromDateTime(dto.Date.Value),
+                WorkDate = workDate,
                 TimeSlot = targetTime,
                 MaxPatients = 1,
                 CurrentBooked = 1
@@ -242,6 +258,20 @@ public class AppointmentsApiController(
 
         if (appt.Status == AppointmentStatus.Cancelled)
             return BadRequest(new { success = false, message = "Lịch hẹn đã bị huỷ." });
+
+        if (appt.Status == AppointmentStatus.Completed)
+            return BadRequest(new { success = false, message = "Lịch hẹn này đã hoàn thành." });
+
+        // ── Validate ngày: chỉ cho check-in đúng ngày lịch hẹn ─────────────
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        if (appt.Schedule != null && appt.Schedule.WorkDate != today)
+        {
+            var diff = appt.Schedule.WorkDate.DayNumber - today.DayNumber;
+            var msg  = diff > 0
+                ? $"Lịch hẹn này vào ngày {appt.Schedule.WorkDate:dd/MM/yyyy}, chưa đến ngày khám."
+                : $"Lịch hẹn này đã qua ngày {appt.Schedule.WorkDate:dd/MM/yyyy}.";
+            return BadRequest(new { success = false, message = msg });
+        }
 
         // Check-in: set to Confirmed → Doctor Queue picks up Confirmed status
         appt.Status = AppointmentStatus.Confirmed;

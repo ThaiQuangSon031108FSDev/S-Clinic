@@ -272,7 +272,13 @@
                                 </div>
                                 <div class="flex flex-col items-end gap-2">
                                     <p class="font-mono font-bold text-slate-500 text-sm">#APT-@a.AppointmentId.ToString("D4")</p>
-                                    @if (a.Status == SClinic.Models.AppointmentStatus.Pending || a.Status == SClinic.Models.AppointmentStatus.Confirmed)
+                                    @{
+                                        var isUpcoming = a.Schedule?.WorkDate >= DateOnly.FromDateTime(DateTime.Today);
+                                        var canQr = (a.Status == SClinic.Models.AppointmentStatus.Pending
+                                                  || a.Status == SClinic.Models.AppointmentStatus.Confirmed)
+                                                  && isUpcoming;
+                                    }
+                                    @if (canQr)
                                     {
                                         <button onclick="window._openQrFor(@a.AppointmentId)"
                                                 class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors shadow-sm">
@@ -591,6 +597,34 @@ createApp({
         const bookingOpen = ref(false);
         const bookingTreatmentId = ref(null);
         const invoices = ref([]);
+
+
+        // ── Profile state ──────────────────────────────────
+        const profile = ref({
+            fullName: '@Html.Raw(Model.FullName?.Replace("'", "\\'"))',
+            phone: '@Html.Raw(Model.Phone?.Replace("'", "\\'"))',
+            dob: '@(Model.DateOfBirth?.ToString("yyyy-MM-dd"))',
+            medHistory: '@Html.Raw(Model.BaseMedicalHistory?.Replace("'", "\\'").Replace("\r", "").Replace("\n", "\\n"))'
+        });
+        const profileSaving = ref(false);
+        const profileMsg    = ref('');
+
+        const saveProfile = async () => {
+            profileSaving.value = true;
+            profileMsg.value = '';
+            try {
+                const res = await fetch('/api/patient/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(profile.value)
+                });
+                const d = await res.json();
+                profileMsg.value = d.message;
+            } catch {
+                profileMsg.value = 'Lỗi kết nối. Thử lại sau.';
+            }
+            profileSaving.value = false;
+        };
 
         // ── QR Check-in ──────────────────────────────────────────────────────
         const qrModal        = ref(false);

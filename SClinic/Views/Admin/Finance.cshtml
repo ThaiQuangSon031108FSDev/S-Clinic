@@ -218,7 +218,7 @@
             <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <div>
                     <h2 class="text-lg font-bold text-slate-900">💳 QR Chuyển khoản</h2>
-                    <p class="text-xs text-slate-500">S-Clinic · MB Bank</p>
+                    <p class="text-xs text-slate-500">S-Clinic · TPBank</p>
                 </div>
                 <button @@click="vietQrModal=null" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-red-100 hover:text-red-600 font-bold flex items-center justify-center">✕</button>
             </div>
@@ -233,10 +233,23 @@
                     <span class="font-extrabold text-brand-primary">[[ vietQrModal.amountFmt ]]đ</span>
                 </div>
                 <p class="text-xs text-slate-400">Để nguyên nội dung để hệ thống xác minh tự động.</p>
+                <!-- Countdown -->
+                <div class="rounded-xl border px-4 py-2.5 text-center transition-all"
+                     :class="qrCountdown === 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'">
+                    <p v-if="qrCountdown > 0" class="text-slate-500 text-xs">
+                        ⏳ Đợi khách chuyển khoản…
+                        <span class="font-mono font-bold text-slate-700">[[ qrCountdown ]]s</span>
+                    </p>
+                    <p v-else class="text-emerald-700 text-xs font-bold animate-pulse">
+                        🔔 Hết thời gian chờ — Xác nhận khách đã chuyển!
+                    </p>
+                </div>
             </div>
             <div class="p-5 pt-0 flex gap-3">
                 <button @@click="vietQrModal=null" class="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600">Huỷ</button>
-                <button @@click="confirmVietQr" class="flex-1 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover shadow-md">
+                <button @@click="confirmVietQr"
+                        :class="qrCountdown === 0 ? 'bg-emerald-600 hover:bg-emerald-700 animate-pulse shadow-lg shadow-emerald-200' : 'bg-brand-primary hover:bg-brand-hover'"
+                        class="flex-1 py-2.5 text-white rounded-xl text-sm font-bold shadow-md transition-all">
                     ✓ Xác nhận đã chuyển
                 </button>
             </div>
@@ -286,7 +299,7 @@
 
 @section Scripts {
 <script>
-const { createApp, ref, computed, onMounted } = Vue;
+const { createApp, ref, computed, onMounted, watch } = Vue;
 createApp({
     delimiters: ['[[', ']]'],
     setup() {
@@ -298,11 +311,24 @@ createApp({
         const payMethod   = ref('Tiền mặt');
         const invoices    = ref([]);
         const vietQrModal = ref(null);
+        const qrCountdown = ref(0);
+        let   _qrTimer    = null;
+
+        // Start 30s countdown khi mở VietQR modal
+        watch(vietQrModal, (val) => {
+            clearInterval(_qrTimer);
+            if (!val) { qrCountdown.value = 0; return; }
+            qrCountdown.value = 30;
+            _qrTimer = setInterval(() => {
+                if (qrCountdown.value > 0) qrCountdown.value--;
+                else clearInterval(_qrTimer);
+            }, 1000);
+        });
 
         // VietQR image URL builder — hardcoded MB Bank demo account
         // Account: 0348963791 · Bank: MB
-        const MB_BANK   = 'MB';
-        const MB_ACCT   = '0348963791';
+        const MB_BANK   = 'TPB';
+        const MB_ACCT   = '99148468888';
         const MB_NAME   = 'PHONG%20KHAM%20S-CLINIC';
         const vietQrImageUrl = computed(() => {
             if (!vietQrModal.value) return '';
@@ -344,7 +370,13 @@ createApp({
                 }))
             }));
         };
-        onMounted(loadData);
+        onMounted(() => {
+            loadData();
+            // Auto-refresh mỗi 8s khi có hóa đơn chờ (bắt SePay webhook cập nhật)
+            setInterval(() => {
+                if (pending.value?.length > 0) loadData();
+            }, 8000);
+        });
 
         // ── Computed ────────────────────────────────────────────────
         const pending = computed(() => invoices.value.filter(i => i.status === 'pending'));
@@ -393,7 +425,7 @@ createApp({
 
         return { filter, search, modal, detailModal, printData, payMethod, invoices,
                  pending, paidCount, todayRevenue, filteredInvoices,
-                 vietQrModal, vietQrImageUrl, openVietQr, confirmVietQr,
+                 vietQrModal, vietQrImageUrl, openVietQr, confirmVietQr, qrCountdown,
                  viewDetail, collect, confirmCollect, printInvoice };
     }
 }).mount('#app');

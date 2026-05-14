@@ -42,33 +42,31 @@ public class InvoicesApiController(
 
         var result = list.Select(i =>
         {
-            // PatientName: try Record chain first, then direct Appointment FK
             var patientName = i.Record?.Appointment?.Patient?.FullName
                            ?? i.Appointment?.Patient?.FullName
                            ?? "Chưa cập nhật";
 
-            // ServiceName: Service lẻ hoặc tên gói liệu trình
             var serviceName = i.InvoiceDetails.FirstOrDefault(d => d.ItemType == InvoiceItemType.Package)?.Package?.PackageName
                            ?? i.InvoiceDetails.FirstOrDefault(d => d.ItemType == InvoiceItemType.Service)?.Service?.ServiceName
                            ?? "";
 
             return new
             {
-                i.InvoiceId,
-                i.TotalAmount,
-                PaymentStatus = i.PaymentStatus.ToString(),
-                CreatedDate   = i.CreatedDate.ToString("dd/MM/yyyy HH:mm"),
-                PatientName   = patientName,
-                ServiceName   = serviceName,
-                Details       = i.InvoiceDetails.Select(d => new
+                invoiceId     = i.InvoiceId,
+                totalAmount   = i.TotalAmount,
+                paymentStatus = i.PaymentStatus.ToString(),
+                createdDate   = i.CreatedDate.ToString("dd/MM/yyyy HH:mm"),
+                patientName,
+                serviceName,
+                details = i.InvoiceDetails.Select(d => new
                 {
-                    Name      = d.ItemType == InvoiceItemType.Medicine && d.Medicine != null ? d.Medicine.MedicineName
-                               : d.ItemType == InvoiceItemType.Service && d.Service  != null ? d.Service.ServiceName
-                               : d.ItemType == InvoiceItemType.Package && d.Package  != null ? $"🎁 {d.Package.PackageName}"
-                               : "—",
+                    name     = d.ItemType == InvoiceItemType.Medicine && d.Medicine != null ? d.Medicine.MedicineName
+                             : d.ItemType == InvoiceItemType.Service  && d.Service  != null ? d.Service.ServiceName
+                             : d.ItemType == InvoiceItemType.Package  && d.Package  != null ? $"🎁 {d.Package.PackageName}"
+                             : "—",
                     d.Quantity,
                     d.UnitPrice,
-                    Subtotal  = d.SubTotal
+                    subtotal = d.SubTotal
                 }).ToList()
             };
         });

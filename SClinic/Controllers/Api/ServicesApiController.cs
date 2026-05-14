@@ -77,6 +77,10 @@ public class ServicesApiController(ApplicationDbContext db) : ControllerBase
             // 3. If the Patient ALREADY booked an appointment in this slot -> lock it for them
             if (patientBookedSlots.Contains(t)) full = true;
 
+            // 4. If the slot is in the past (for today) -> lock it
+            var now = DateTime.Now;
+            if (d == DateOnly.FromDateTime(now) && t <= TimeOnly.FromDateTime(now)) full = true;
+
             return new { slot = slotStr, full };
         }).ToList();
 

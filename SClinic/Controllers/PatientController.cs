@@ -50,6 +50,9 @@ public class PatientController(ApplicationDbContext db, IBookingService booking,
             return Json(new { success = false, message = "Không thể đặt lịch ngày đã qua." });
         if (!TimeOnly.TryParse(req.Time, out var timeSlot))
             return Json(new { success = false, message = "Giờ không hợp lệ." });
+            
+        if (workDate == DateOnly.FromDateTime(DateTime.Today) && timeSlot <= TimeOnly.FromDateTime(DateTime.Now))
+            return Json(new { success = false, message = "Không thể đặt lịch vào khung giờ đã qua." });
 
         // ── Auto-assign: tìm bác sĩ có lịch + còn chỗ trống ─────────────────
         var schedule = await db.DoctorSchedules
@@ -209,32 +212,54 @@ public class PatientController(ApplicationDbContext db, IBookingService booking,
 
             return new
             {
-                RecordId      = r.RecordId,
-                ExamDate      = r.RecordDate.ToString("dd/MM/yyyy HH:mm"),
-                DoctorName    = r.Doctor?.FullName ?? "—",
-                ServiceName   = r.Appointment?.Service?.ServiceName,
-                Diagnosis     = r.Diagnosis,
-                SkinCondition = r.SkinCondition,
-                SessionImages = sessionImages,
-                Prescriptions = r.Invoice?.InvoiceDetails
+                recordId      = r.RecordId,
+                examDate      = r.RecordDate.ToString("dd/MM/yyyy HH:mm"),
+                doctorName    = r.Doctor?.FullName ?? "—",
+                serviceName   = r.Appointment?.Service?.ServiceName,
+                diagnosis     = r.Diagnosis,
+                skinCondition = r.SkinCondition,
+                sessionImages = sessionImages,
+                prescriptions = r.Invoice?.InvoiceDetails
                     .Where(d => d.Medicine != null)
                     .Select(d => new {
-                        MedicineId   = d.Medicine!.MedicineId,
-                        MedicineName = d.Medicine.MedicineName,
-                        Quantity     = d.Quantity,
-                        Dosage       = (string?)null
+                        medicineId   = d.Medicine!.MedicineId,
+                        medicineName = d.Medicine.MedicineName,
+                        quantity     = d.Quantity,
+                        dosage       = (string?)null
                     }) ?? [],
-                Invoice = r.Invoice != null ? new {
-                    r.Invoice.InvoiceId,
-                    Total  = r.Invoice.TotalAmount,
-                    Date   = r.Invoice.CreatedDate.ToString("dd/MM/yyyy"),
-                    Status = r.Invoice.PaymentStatus.ToString()
+                invoice = r.Invoice != null ? new {
+                    invoiceId = r.Invoice.InvoiceId,
+                    total  = r.Invoice.TotalAmount,
+                    date   = r.Invoice.CreatedDate.ToString("dd/MM/yyyy"),
+                    status = r.Invoice.PaymentStatus.ToString()
                 } : null
             };
         });
 
         return Ok(result);
     }
+    [HttpPost("/api/patient/profile")]
+    public async Task<IActionResult> UpdateProfile([FromBody] PatientProfileUpdate req)
+    {
+        var accountId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        var patient = await db.Patients.Include(p => p.Account).FirstOrDefaultAsync(p => p.AccountId == accountId);
+        if (patient == null) return NotFound(new { success = false, message = "Không tìm thấy hồ sơ." });
+
+        if (string.IsNullOrWhiteSpace(req.FullName) || string.IsNullOrWhiteSpace(req.Phone))
+            return BadRequest(new { success = false, message = "Tên và SĐT không được để trống." });
+
+        patient.FullName = req.FullName.Trim();
+        patient.Phone = req.Phone.Trim();
+        patient.BaseMedicalHistory = req.MedHistory;
+
+        if (DateOnly.TryParse(req.Dob, out var dob))
+            patient.DateOfBirth = dob;
+
+        await db.SaveChangesAsync();
+
+        return Ok(new { success = true, message = "Cập nhật hồ sơ thành công!" });
+    }
 }
 
 public record BookRequest(int DoctorId, int? ServiceId, string Date, string Time, string? Note, int PatientTreatmentId = 0);
+public record PatientProfileUpdate(string FullName, string Phone, string? Dob, string? MedHistory);

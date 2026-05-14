@@ -245,12 +245,13 @@ public class DoctorApiController(
                 });
             }
 
+            var total = basePrice + prescriptionTotal;
             var invoice = new Invoice
             {
                 RecordId      = appt.MedicalRecord?.RecordId,
                 AppointmentId = appointmentId,
-                PaymentStatus = PaymentStatus.Pending,
-                TotalAmount   = basePrice + prescriptionTotal,
+                PaymentStatus = total > 0 ? PaymentStatus.Pending : PaymentStatus.Paid,
+                TotalAmount   = total,
                 CreatedDate   = DateTime.Now,
             };
             db.Invoices.Add(invoice);
@@ -266,26 +267,28 @@ public class DoctorApiController(
 
         // 🔔 SignalR: notify Cashier & Admin that session is done
         var sessionPatient = await db.Patients.FindAsync(appt.PatientId);
-        var invoiceId = await db.Invoices
-            .Where(i => i.AppointmentId == appointmentId)
-            .Select(i => i.InvoiceId)
-            .FirstOrDefaultAsync();
+        
+        var dbInvoice = await db.Invoices
+            .FirstOrDefaultAsync(i => i.AppointmentId == appointmentId);
 
-        await hub.Clients.Group("Cashier")
-            .SendAsync("ReceiveNotification", new
-            {
-                type    = "invoice",
-                icon    = "💸",
-                title   = "Bệnh nhân khám xong",
-                message = $"{sessionPatient?.FullName ?? "Bệnh nhân"} vừa hoàn tất điều trị. Hóa đơn #{invoiceId} đang chờ thanh toán."
-            });
+        if (dbInvoice != null && dbInvoice.PaymentStatus == PaymentStatus.Pending)
+        {
+            await hub.Clients.Group("Cashier")
+                .SendAsync("ReceiveNotification", new
+                {
+                    type    = "invoice",
+                    icon    = "💸",
+                    title   = "Bệnh nhân khám xong",
+                    message = $"{sessionPatient?.FullName ?? "Bệnh nhân"} vừa hoàn tất điều trị. Hóa đơn #{dbInvoice.InvoiceId} đang chờ thanh toán."
+                });
+        }
         await hub.Clients.Group("Admin")
             .SendAsync("ReceiveNotification", new
             {
                 type    = "invoice",
                 icon    = "💰",
                 title   = "Hóa đơn mới",
-                message = $"HD #{invoiceId} của {sessionPatient?.FullName ?? "BN"} — chờ thu ngân xử lý."
+                message = $"HD #{dbInvoice?.InvoiceId} của {sessionPatient?.FullName ?? "BN"} — chờ thu ngân xử lý."
             });
 
         return Ok(new { success = true, message = "Đã hoàn tất buổi điều trị và chuyển sang Thu Ngân." });
@@ -582,11 +585,17 @@ public class DoctorApiController(
 
         if (dto.ImageData.StartsWith("data:"))
         {
-            // data:<mime>;base64,<data>
             var semi   = dto.ImageData.IndexOf(';');
             var comma  = dto.ImageData.IndexOf(',');
-            mimeType   = dto.ImageData[5..semi];
-            base64Data = dto.ImageData[(comma + 1)..];
+            if (semi > 5 && comma > semi)
+            {
+                mimeType   = dto.ImageData[5..semi];
+                base64Data = dto.ImageData[(comma + 1)..].Trim();
+            }
+        }
+        else
+        {
+            base64Data = dto.ImageData.Trim();
         }
 
         var sideLabel = dto.Side == "after" ? "ảnh After (sau điều trị)" : "ảnh Before (trước điều trị)";
@@ -629,8 +638,22 @@ public class DoctorApiController(
             var body     = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
+            {
+                // Parse Gemini error message nếu có
+                string geminiMsg = response.StatusCode.ToString();
+                try
+                {
+                    using var errDoc = JsonDocument.Parse(body);
+                    geminiMsg = errDoc.RootElement
+                        .GetProperty("error")
+                        .GetProperty("message")
+                        .GetString() ?? geminiMsg;
+                }
+                catch { /* body không phải JSON, giữ nguyên status */ }
+
                 return StatusCode((int)response.StatusCode,
-                    new { success = false, message = $"Gemini API lỗi: {response.StatusCode}", detail = body });
+                    new { success = false, message = $"Gemini lỗi: {geminiMsg}" });
+            }
 
             using var doc = JsonDocument.Parse(body);
             var text = doc.RootElement

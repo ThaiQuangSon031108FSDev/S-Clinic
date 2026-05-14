@@ -415,11 +415,17 @@
                     </span>
                 </div>
                 <p v-if="scanError" class="text-xs text-red-500 font-semibold text-center">⚠️ [[ scanError ]]</p>
+                <!-- Cảnh báo nếu không phải ngày hôm nay -->
+                <div v-if="scanResult && !scanDateOk"
+                     class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-center">
+                    <p class="text-amber-700 text-xs font-bold">⏰ Lịch hẹn này vào ngày [[ scanResult.date ]], không phải hôm nay.</p>
+                    <p class="text-amber-600 text-xs mt-0.5">Không thể check-in trước hoặc sau ngày khám.</p>
+                </div>
                 <div class="flex gap-3">
                     <button @@click="scanResult=null; scanError=''" class="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600">← Quét lại</button>
                     <button @@click="doCheckInFromScan"
-                            :disabled="scanResult.status==='Completed'"
-                            class="flex-1 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover shadow-md disabled:opacity-40">
+                            :disabled="scanResult.status==='Completed' || !scanDateOk"
+                            class="flex-1 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold hover:bg-brand-hover shadow-md disabled:opacity-40 disabled:cursor-not-allowed">
                         ✓ Xác nhận Check-in
                     </button>
                 </div>
@@ -761,6 +767,18 @@ createApp({
             rescheduling.value = false;
         };
 
+        const scanDateOk = computed(() => {
+            if (!scanResult.value?.date) return true;
+            // date format from API: "dd/MM/yyyy"
+            const parts = scanResult.value.date.split('/');
+            if (parts.length !== 3) return true;
+            const apptDate = new Date(+parts[2], +parts[1] - 1, +parts[0]);
+            const today    = new Date();
+            return apptDate.getFullYear() === today.getFullYear() &&
+                   apptDate.getMonth()    === today.getMonth()    &&
+                   apptDate.getDate()     === today.getDate();
+        });
+
         // ── QR Scanner ───────────────────────────────────────────────────────────
         const scannerOpen    = ref(false);
         const scanResult     = ref(null);
@@ -885,7 +903,7 @@ createApp({
             rescheduleModal, rescheduleDate, rescheduleTime, rescheduleSlots,
             rescheduleSlotsLoading, rescheduleError, rescheduling,
             openReschedule, loadRescheduleSlots, submitReschedule,
-            scannerOpen, scanResult, scanError, scanLoading, bookingQrAppt,
+            scannerOpen, scanResult, scanError, scanLoading, scanDateOk, bookingQrAppt,
             openScanner, closeScanner, startScanner, doCheckInFromScan, printQr,
         };
     }

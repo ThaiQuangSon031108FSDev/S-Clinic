@@ -1,7 +1,91 @@
+@model IEnumerable<SClinic.Models.Patient>
 @{
-    ViewData["Title"] = "My Patients";
+    ViewData["Title"] = "Danh sách Bệnh nhân";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
 }
-<div id="app">
-    <patient-list></patient-list>
+
+<div id="app" class="max-w-6xl mx-auto space-y-6">
+    <div class="flex justify-between items-end">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">Danh sách Bệnh nhân</h1>
+            <p class="text-slate-500 mt-1">Quản lý hồ sơ và bệnh án của bệnh nhân</p>
+        </div>
+        <div class="relative">
+            <input v-model="searchQuery" type="text" placeholder="Tìm theo tên, SĐT..."
+                   class="pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-primary focus:outline-none w-64" />
+            <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider">
+                    <th class="px-6 py-4 font-bold">Mã BN</th>
+                    <th class="px-6 py-4 font-bold">Bệnh nhân</th>
+                    <th class="px-6 py-4 font-bold">Liên hệ</th>
+                    <th class="px-6 py-4 font-bold">Ngày sinh</th>
+                    <th class="px-6 py-4 font-bold">Tiền sử / Ghi chú</th>
+                    <th class="px-6 py-4 text-center font-bold">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                <tr v-for="p in filteredPatients" :key="p.id" class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4 font-mono text-sm text-slate-500">#BN-[[ String(p.id).padStart(4,'0') ]]</td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary font-bold flex items-center justify-center flex-shrink-0">
+                                [[ p.name[0] ]]
+                            </div>
+                            <span class="font-bold text-slate-900">[[ p.name ]]</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-slate-600">[[ p.phone ]]</td>
+                    <td class="px-6 py-4 text-sm text-slate-600">[[ p.dob || '—' ]]</td>
+                    <td class="px-6 py-4">
+                        <p v-if="p.history" class="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100 inline-block max-w-[200px] truncate" :title="p.history">
+                            ⚠️ [[ p.history ]]
+                        </p>
+                        <span v-else class="text-slate-400 text-xs">—</span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <button @@click="viewDetails(p)" class="text-brand-primary font-bold text-sm hover:underline">Chi tiết</button>
+                    </td>
+                </tr>
+                <tr v-if="filteredPatients.length === 0">
+                    <td colspan="6" class="px-6 py-12 text-center text-slate-400">Không tìm thấy bệnh nhân nào.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
-@section Scripts { <script type="module" src="~/js/doctor.js"></script> }
+
+@section Scripts {
+<script>
+const { createApp, ref, computed } = Vue;
+createApp({
+    delimiters: ['[[', ']]'],
+    setup() {
+        const patients = ref([
+            @foreach (var p in Model)
+            {
+                <text>{ id: @p.PatientId, name: '@Html.Raw(p.FullName?.Replace("'", "\\'"))', phone: '@p.Phone', dob: '@(p.DateOfBirth?.ToString("dd/MM/yyyy"))', history: '@Html.Raw(p.BaseMedicalHistory?.Replace("'", "\\'").Replace("\n", " ").Replace("\r", ""))' },</text>
+            }
+        ]);
+        const searchQuery = ref('');
+
+        const filteredPatients = computed(() => {
+            const q = searchQuery.value.trim().toLowerCase();
+            if (!q) return patients.value;
+            return patients.value.filter(p => p.name.toLowerCase().includes(q) || p.phone.includes(q));
+        });
+
+        const viewDetails = (p) => {
+            alert('Chức năng xem chi tiết hồ sơ bệnh nhân ' + p.name + ' đang được phát triển.');
+        };
+
+        return { patients, searchQuery, filteredPatients, viewDetails };
+    }
+}).mount('#app');
+</script>
+}

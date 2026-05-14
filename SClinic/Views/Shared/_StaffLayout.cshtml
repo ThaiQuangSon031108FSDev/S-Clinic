@@ -121,10 +121,7 @@
                            class="@(pageTitle=="Danh mục hệ thống"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
                             🗂️ Danh mục hệ thống
                         </a>
-                        <a asp-controller="Admin" asp-action="Inventory"
-                           class="@(pageTitle=="Kho thuốc"?"bg-brand-primary text-white shadow-md":"hover:bg-slate-800 hover:text-white") flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium">
-                            💊 Kho thuốc
-                        </a>
+
                     </nav>
                 </div>
             }
@@ -235,7 +232,7 @@
         el.innerHTML = [
             '<div style="font-size:1.6rem;flex-shrink:0;line-height:1">' + icon + '</div>',
             '<div>',
-            '  <p style="font-weight:700;font-size:.82rem;color:#dc2626;margin:0 0 3px">🚨 KHÔNG PHẢI MOCKUP - ' + new Date().toLocaleTimeString() + '</p>',
+            '  <p style="font-weight:700;font-size:.82rem;color:#dc2626;margin:0 0 3px">🚨 THÔNG BÁO - ' + new Date().toLocaleTimeString() + '</p>',
             '  <p style="font-weight:700;font-size:1rem;color:#1e293b;margin:0 0 3px">' + title + '</p>',
             '  <p style="font-size:.75rem;color:#64748b;margin:0;line-height:1.4">' + msg + '</p>',
             '</div>',

@@ -11,10 +11,10 @@ public class MedicalRecord
     public int AppointmentId { get; set; }
     public int DoctorId { get; set; }
 
-    [MaxLength(500)]
+    [Column(TypeName = "nvarchar(MAX)")]
     public string? SkinCondition { get; set; }
 
-    [MaxLength(1000)]
+    [Column(TypeName = "nvarchar(MAX)")]
     public string? Diagnosis { get; set; }
 
     public DateTime RecordDate { get; set; } = DateTime.Now;

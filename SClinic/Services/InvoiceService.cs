@@ -40,6 +40,12 @@ public class InvoiceService(ApplicationDbContext db) : IInvoiceService
         var invoice = await db.Invoices
             .Include(i => i.InvoiceDetails)
                 .ThenInclude(d => d.Medicine)
+            .Include(i => i.InvoiceDetails)
+                .ThenInclude(d => d.Package)
+            .Include(i => i.Record)
+                .ThenInclude(r => r.Appointment)
+            .Include(i => i.Appointment)
+                .ThenInclude(a => a.Schedule)
             .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId);
 
         if (invoice is null || invoice.PaymentStatus != PaymentStatus.Pending)
@@ -56,6 +62,33 @@ public class InvoiceService(ApplicationDbContext db) : IInvoiceService
                     $"Available: {detail.Medicine.StockQuantity}, Required: {detail.Quantity}.");
 
             detail.Medicine.StockQuantity -= detail.Quantity;
+        }
+        
+        // Auto-activate packages if purchased
+        var patientId = invoice.Record?.Appointment?.PatientId ?? invoice.Appointment?.PatientId;
+        var doctorId = invoice.Record?.DoctorId ?? invoice.Appointment?.Schedule?.DoctorId ?? 1; // Fallback to doctor 1 if unknown
+
+        if (patientId.HasValue)
+        {
+            foreach (var detail in invoice.InvoiceDetails.Where(d => d.ItemType == InvoiceItemType.Package))
+            {
+                if (detail.Package is null) continue;
+                
+                // Purchase quantity times
+                for (int i = 0; i < detail.Quantity; i++)
+                {
+                    var treatment = new PatientTreatment
+                    {
+                        PatientId = patientId.Value,
+                        PackageId = detail.PackageId!.Value,
+                        PrimaryDoctorId = doctorId,
+                        TotalSessions = detail.Package.TotalSessions,
+                        UsedSessions = 0,
+                        Status = TreatmentStatus.Active
+                    };
+                    db.PatientTreatments.Add(treatment);
+                }
+            }
         }
 
         invoice.PaymentStatus = PaymentStatus.Paid;
